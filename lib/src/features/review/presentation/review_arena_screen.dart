@@ -1,16 +1,21 @@
-import 'dart:math' as math;
+import 'dart:io';
 
 import 'package:confetti/confetti.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:isar/isar.dart';
 
 import '../../../core/storage/isar_database.dart';
 import '../../lessons/data/models/kana_card.dart';
+import '../../lessons/data/seed/kana_seed_data.dart';
 import '../../lessons/domain/services/srs_service.dart';
 
 class ReviewArenaScreen extends StatefulWidget {
-  const ReviewArenaScreen({super.key});
+  const ReviewArenaScreen({super.key, this.initialRow});
+
+  final int? initialRow;
 
   @override
   State<ReviewArenaScreen> createState() => _ReviewArenaScreenState();
@@ -18,6 +23,7 @@ class ReviewArenaScreen extends StatefulWidget {
 
 class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   final SrsService _srsService = const SrsService();
+  final FlutterTts _tts = FlutterTts();
   final ConfettiController _confettiController = ConfettiController(
     duration: const Duration(seconds: 2),
   );
@@ -26,28 +32,81 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   List<KanaCard> _dueCards = <KanaCard>[];
   bool _isLoading = true;
   bool _isBackVisible = false;
+  bool _isPracticeMode = false;
+  bool _hasNextSection = false;
+  int _activeRow = 0;
   int _reviewedCount = 0;
+  int _comboStreak = 0;
+  bool _ttsAvailable = false;
+
+  static final Map<int, Map<String, int>> _rowCharacterOrder = () {
+    final order = <int, Map<String, int>>{};
+    for (var i = 0; i < seedKanaCards.length; i += 1) {
+      final seed = seedKanaCards[i];
+      final rowOrder = order.putIfAbsent(seed.row, () => <String, int>{});
+      rowOrder[seed.character] = i;
+    }
+    return order;
+  }();
 
   @override
   void initState() {
     super.initState();
+    _configureTts();
     _loadSession();
   }
 
   @override
   void dispose() {
+    if (_ttsAvailable) {
+      _tts.stop().catchError((_) {});
+    }
     _confettiController.dispose();
     super.dispose();
   }
 
+  Future<void> _configureTts() async {
+    try {
+      await _tts.setLanguage('ja-JP');
+      await _tts.setSpeechRate(0.42);
+      await _tts.setPitch(1.0);
+      await _tts.awaitSpeakCompletion(true);
+      _ttsAvailable = true;
+    } catch (_) {
+      _ttsAvailable = false;
+    }
+  }
+
   Future<void> _loadSession() async {
-    final isar = await IsarDatabase.open();
+    final isar = await IsarDatabase.getInstance();
     final now = DateTime.now();
     final cards = await isar.kanaCards.where().findAll();
 
-    final due =
-        cards.where((card) => !card.nextReviewDate.isAfter(now)).toList()
-          ..sort((a, b) => a.nextReviewDate.compareTo(b.nextReviewDate));
+    final validCards = cards
+        .where((card) => card.character.trim().runes.length == 1)
+        .toList();
+
+    final availableRows = validCards.map((card) => card.row).toSet().toList()
+      ..sort();
+
+    final requestedRow = widget.initialRow ?? 0;
+    final baseRow = availableRows.contains(requestedRow)
+        ? requestedRow
+        : (availableRows.isEmpty ? requestedRow : availableRows.first);
+
+    final currentRowCards = validCards
+        .where((card) => card.row == baseRow)
+        .toList();
+
+    final dueCards = currentRowCards
+        .where((card) => !card.nextReviewDate.isAfter(now))
+        .toList();
+    _sortCardsForRow(dueCards, baseRow);
+
+    var sessionRow = baseRow;
+    final currentRowFallback = List<KanaCard>.from(currentRowCards);
+    _sortCardsForRow(currentRowFallback, baseRow);
+    List<KanaCard> sessionCards = dueCards.isNotEmpty ? dueCards : currentRowFallback;
 
     if (!mounted) {
       return;
@@ -55,10 +114,27 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
 
     setState(() {
       _isar = isar;
-      _dueCards = due;
+      _dueCards = sessionCards;
       _isLoading = false;
       _isBackVisible = false;
+      _isPracticeMode = dueCards.isEmpty && currentRowCards.isNotEmpty;
+      _hasNextSection = availableRows.any((row) => row > sessionRow);
+      _activeRow = sessionRow;
       _reviewedCount = 0;
+      _comboStreak = 0;
+    });
+  }
+
+  void _sortCardsForRow(List<KanaCard> cards, int row) {
+    final rowOrder = _rowCharacterOrder[row] ?? const <String, int>{};
+    cards.sort((left, right) {
+      final leftKey = rowOrder[left.character] ?? 1 << 20;
+      final rightKey = rowOrder[right.character] ?? 1 << 20;
+      if (leftKey != rightKey) {
+        return leftKey.compareTo(rightKey);
+      }
+
+      return left.nextReviewDate.compareTo(right.nextReviewDate);
     });
   }
 
@@ -82,6 +158,7 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
       _dueCards = List<KanaCard>.from(_dueCards)..removeAt(0);
       _reviewedCount += 1;
       _isBackVisible = false;
+      _comboStreak = rating >= 3 ? _comboStreak + 1 : 0;
     });
 
     if (_dueCards.isEmpty) {
@@ -89,11 +166,60 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     }
   }
 
-  void _playAudioHint(String character) {
+  Future<void> _playAudioHint(String character) async {
     SystemSound.play(SystemSoundType.click);
+
+    if (_ttsAvailable) {
+      try {
+        await _tts.stop();
+        await _tts.speak(character);
+        return;
+      } catch (_) {
+        _ttsAvailable = false;
+      }
+    }
+
+    if (!kIsWeb && Platform.isLinux) {
+      final worked = await _speakWithLinuxTts(character);
+      if (worked) {
+        return;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Audio for "$character" will be added in a later phase.'),
+      const SnackBar(content: Text('Audio playback is unavailable on this device.')),
+    );
+  }
+
+  Future<bool> _speakWithLinuxTts(String text) async {
+    final attempts = <({String command, List<String> args})>[
+      (command: 'spd-say', args: <String>['-l', 'ja', text]),
+      (command: 'espeak', args: <String>['-v', 'ja', text]),
+      (command: 'espeak-ng', args: <String>['-v', 'ja', text]),
+    ];
+
+    for (final attempt in attempts) {
+      try {
+        final result = await Process.run(attempt.command, attempt.args);
+        if (result.exitCode == 0) {
+          return true;
+        }
+      } catch (_) {
+        // Try next command.
+      }
+    }
+
+    return false;
+  }
+
+  void _continueToNextSection() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (context) => ReviewArenaScreen(initialRow: _activeRow + 1),
       ),
     );
   }
@@ -125,7 +251,12 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _dueCards.isEmpty
-                  ? _SessionCompleteView(reviewedCount: _reviewedCount)
+                  ? _SessionCompleteView(
+                      reviewedCount: _reviewedCount,
+                      activeRow: _activeRow,
+                      hasNextSection: _hasNextSection,
+                      onContinue: _continueToNextSection,
+                    )
                   : _buildActiveSession(context),
             ),
           ),
@@ -159,9 +290,14 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       child: Column(
         children: [
+          if (_isPracticeMode)
+            _PracticeModeBanner(onExit: () => Navigator.of(context).pop()),
+          if (_isPracticeMode) const SizedBox(height: 12),
           _SessionMeta(
+            activeRow: _activeRow,
             reviewedCount: _reviewedCount,
             remainingCount: _dueCards.length,
+            comboStreak: _comboStreak,
           ),
           const SizedBox(height: 18),
           Expanded(
@@ -178,17 +314,10 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        card.character,
-                        style: Theme.of(context).textTheme.displayLarge
-                            ?.copyWith(
-                              color: scheme.onSurface,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
+                      _CardKanaText(value: card.character),
                       const SizedBox(height: 12),
                       Text(
-                        card.script == KanaScript.hiragana
+                        card.script == 0
                             ? 'Hiragana'
                             : 'Katakana',
                         style: Theme.of(context).textTheme.titleMedium
@@ -237,14 +366,57 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   }
 }
 
+class _PracticeModeBanner extends StatelessWidget {
+  const _PracticeModeBanner({required this.onExit});
+
+  final VoidCallback onExit;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.school_rounded, color: scheme.onPrimaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No cards are due right now. Practice mode is showing up to 10 cards.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: scheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onExit,
+            child: const Text('Back'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SessionMeta extends StatelessWidget {
   const _SessionMeta({
+    required this.activeRow,
     required this.reviewedCount,
     required this.remainingCount,
+    required this.comboStreak,
   });
 
+  final int activeRow;
   final int reviewedCount;
   final int remainingCount;
+  final int comboStreak;
 
   @override
   Widget build(BuildContext context) {
@@ -260,12 +432,25 @@ class _SessionMeta extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              '$remainingCount card${remainingCount == 1 ? '' : 's'} left',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: scheme.onSurface,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Section ${activeRow + 1}',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$remainingCount card${remainingCount == 1 ? '' : 's'} left',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
           Text(
@@ -274,53 +459,50 @@ class _SessionMeta extends StatelessWidget {
               context,
             ).textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
           ),
+          if (comboStreak > 1) ...[
+            const SizedBox(width: 10),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: scheme.tertiaryContainer,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text(
+                  'Combo x$comboStreak',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.onTertiaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _CardFace extends StatelessWidget {
-  const _CardFace({required this.title, required this.child});
+class _CardKanaText extends StatelessWidget {
+  const _CardKanaText({required this.value});
 
-  final String title;
-  final Widget child;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.secondary.withValues(alpha: 0.10),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
+    return Text(
+      value,
+      textDirection: TextDirection.ltr,
+      softWrap: false,
+      textAlign: TextAlign.center,
+      locale: const Locale('ja', 'JP'),
+      strutStyle: const StrutStyle(forceStrutHeight: true),
+      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            height: 1.0,
+            letterSpacing: 0,
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-        child: Column(
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Expanded(child: Center(child: child)),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -397,10 +579,63 @@ class _RateButton extends StatelessWidget {
   }
 }
 
+class _CardFace extends StatelessWidget {
+  const _CardFace({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.secondary.withValues(alpha: 0.10),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Expanded(child: Center(child: child)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SessionCompleteView extends StatelessWidget {
-  const _SessionCompleteView({required this.reviewedCount});
+  const _SessionCompleteView({
+    required this.reviewedCount,
+    required this.activeRow,
+    required this.hasNextSection,
+    required this.onContinue,
+  });
 
   final int reviewedCount;
+  final int activeRow;
+  final bool hasNextSection;
+  final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
@@ -441,13 +676,22 @@ class _SessionCompleteView extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'You reviewed $reviewedCount cards. Great work.',
+                  reviewedCount == 0
+                      ? 'No cards left in this section right now.'
+                      : 'You reviewed $reviewedCount cards. Section ${activeRow + 1} complete.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (hasNextSection)
+                  FilledButton.icon(
+                    onPressed: onContinue,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text('Start Next Section'),
+                  ),
+                if (hasNextSection) const SizedBox(height: 10),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.map_rounded),
@@ -482,12 +726,13 @@ class _FlipCardState extends State<FlipCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 460),
+    duration: const Duration(milliseconds: 260),
+    value: 1,
   );
-  late final Animation<double> _rotation = Tween<double>(
-    begin: 0,
-    end: 1,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic));
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeInOut,
+  );
 
   bool _isBackVisible = false;
 
@@ -500,11 +745,7 @@ class _FlipCardState extends State<FlipCard>
   Future<void> _flip() async {
     HapticFeedback.lightImpact();
 
-    if (_isBackVisible) {
-      await _controller.reverse();
-    } else {
-      await _controller.forward();
-    }
+    await _controller.reverse();
 
     if (!mounted) {
       return;
@@ -514,38 +755,41 @@ class _FlipCardState extends State<FlipCard>
       _isBackVisible = !_isBackVisible;
     });
     widget.onFlipChanged(_isBackVisible);
+
+    await _controller.forward();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: _flip,
-      child: AnimatedBuilder(
-        animation: _rotation,
-        builder: (context, child) {
-          final angle = _rotation.value * math.pi;
-          final isFront = angle <= math.pi / 2;
-
-          return Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.0014)
-              ..rotateY(angle),
-            child: Transform(
-              alignment: Alignment.center,
-              transform: isFront ? Matrix4.identity() : Matrix4.identity()
-                ..rotateY(math.pi),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 460,
-                  minHeight: 280,
-                  maxHeight: 520,
+      child: FadeTransition(
+        opacity: _fade,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 460,
+            minHeight: 280,
+            maxHeight: 520,
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
+                  child: child,
                 ),
-                child: isFront ? widget.front : widget.back,
-              ),
+              );
+            },
+            child: KeyedSubtree(
+              key: ValueKey<bool>(_isBackVisible),
+              child: _isBackVisible ? widget.back : widget.front,
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

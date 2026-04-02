@@ -9,7 +9,7 @@ import '../domain/hiragana_row.dart';
 import '../domain/world_map_progress.dart';
 
 final isarProvider = FutureProvider<Isar>((ref) async {
-  return IsarDatabase.open();
+  return IsarDatabase.getInstance();
 });
 
 final hiraganaRowsProvider = FutureProvider<List<HiraganaRow>>((ref) async {
@@ -27,6 +27,7 @@ final worldMapProgressProvider = FutureProvider<WorldMapProgress>((ref) async {
     cards: cards,
     now: DateTime.now(),
     isCardMastered: srsService.isCardMastered,
+    isCardCompleted: srsService.isCardCompleted,
     computeUnlockedRow: srsService.computeUnlockedRow,
   );
 });

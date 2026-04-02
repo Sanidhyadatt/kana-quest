@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/app.dart';
+import '../../review/presentation/review_arena_screen.dart';
 import '../domain/world_map_progress.dart';
 import 'home_providers.dart';
 
@@ -47,6 +48,24 @@ class HomeScreen extends ConsumerWidget {
                         return Shrine(
                           progress: shrine,
                           isLeftAligned: index.isEven,
+                          onTap: shrine.isLocked
+                              ? null
+                              : () {
+                                  if (shrine.row.row == 0) {
+                                    Navigator.of(context).pushNamed(
+                                      AppRoutes.baseCamp,
+                                    );
+                                    return;
+                                  }
+
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (context) => ReviewArenaScreen(
+                                        initialRow: shrine.row.row,
+                                      ),
+                                    ),
+                                  );
+                                },
                         );
                       },
                     ),
@@ -58,7 +77,22 @@ class HomeScreen extends ConsumerWidget {
                     child: _FloatingHeader(
                       progress: progress,
                       onStartReview: () {
-                        Navigator.of(context).pushNamed(AppRoutes.reviewArena);
+                        if (progress.shrines.isEmpty) {
+                          return;
+                        }
+
+                        final firstOpenShrine = progress.shrines.firstWhere(
+                          (shrine) => !shrine.isLocked,
+                          orElse: () => progress.shrines.first,
+                        );
+
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => ReviewArenaScreen(
+                              initialRow: firstOpenShrine.row.row,
+                            ),
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -188,7 +222,7 @@ class _FloatingHeader extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            '${progress.dueCount} cards due today · ${progress.masteredCount} mastered',
+                            '${progress.dueCount} cards due today · ${progress.masteredCount} learned',
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
@@ -202,14 +236,16 @@ class _FloatingHeader extends StatelessWidget {
                 const SizedBox(height: 14),
                 _XpBar(progress: progress.rank),
                 const SizedBox(height: 14),
+                _QuestPanel(progress: progress),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: progress.dueCount == 0 ? null : onStartReview,
+                    onPressed: onStartReview,
                     icon: const Icon(Icons.auto_stories_rounded),
                     label: Text(
                       progress.dueCount == 0
-                          ? 'No cards due'
+                          ? 'Continue Training'
                           : 'Enter Review Arena',
                     ),
                   ),
@@ -217,6 +253,80 @@ class _FloatingHeader extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuestPanel extends StatelessWidget {
+  const _QuestPanel({required this.progress});
+
+  final WorldMapProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final activeShrine = progress.shrines.firstWhere(
+      (shrine) => !shrine.isLocked,
+      orElse: () => progress.shrines.first,
+    );
+    final progressFraction = activeShrine.totalCount == 0
+        ? 0.0
+        : activeShrine.masteryFraction;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.local_fire_department_rounded, color: scheme.onSecondaryContainer),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Daily Quest',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: scheme.onSecondaryContainer,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Text(
+                  '${(progressFraction * 100).round()}%',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              activeShrine.isMastered
+                  ? 'Section ${activeShrine.row.label} is cleared. Start the next row to keep the chain going.'
+                  : 'Finish ${activeShrine.row.label} row to unlock the next section.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSecondaryContainer,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progressFraction,
+                minHeight: 10,
+                backgroundColor: scheme.onSecondaryContainer.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -337,10 +447,12 @@ class Shrine extends StatelessWidget {
     super.key,
     required this.progress,
     required this.isLeftAligned,
+    this.onTap,
   });
 
   final ShrineProgress progress;
   final bool isLeftAligned;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -356,26 +468,33 @@ class Shrine extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Align(
-              alignment: isLeftAligned
-                  ? Alignment.centerLeft
-                  : Alignment.centerRight,
-              child: _ShrineCard(
-                progress: progress,
-                cardColor: cardColor,
-                textColor: textColor,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: onTap,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: isLeftAligned
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  child: _ShrineCard(
+                    progress: progress,
+                    cardColor: cardColor,
+                    textColor: textColor,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 16),
+              _PathNode(progress: progress),
+              const SizedBox(width: 16),
+              const Expanded(child: SizedBox()),
+            ],
           ),
-          const SizedBox(width: 16),
-          _PathNode(progress: progress),
-          const SizedBox(width: 16),
-          const Expanded(child: SizedBox()),
-        ],
+        ),
       ),
     );
   }
@@ -541,7 +660,7 @@ class _ShrineCard extends StatelessWidget {
                   _Pill(
                     label: progress.totalCount == 0
                         ? 'No cards yet'
-                        : '${(progress.masteryFraction * 100).round()}% mastery',
+                        : '${(progress.masteryFraction * 100).round()}% learned',
                     background: scheme.surfaceContainerHighest,
                     foreground: scheme.onSurface,
                   ),

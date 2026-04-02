@@ -110,6 +110,7 @@ WorldMapProgress buildWorldMapProgress({
   required List<KanaCard> cards,
   required DateTime now,
   required bool Function(KanaCard card) isCardMastered,
+  required bool Function(KanaCard card) isCardCompleted,
   required int Function({
     required int currentUnlockedRow,
     required Iterable<KanaCard> allCards,
@@ -124,7 +125,7 @@ WorldMapProgress buildWorldMapProgress({
   final dueCards = cards
       .where((card) => !card.nextReviewDate.isAfter(now))
       .toList();
-  final masteredCards = cards.where(isCardMastered).toList();
+  final completedCards = cards.where(isCardCompleted).toList();
   final unlockedRow = computeUnlockedRow(
     currentUnlockedRow: 0,
     allCards: cards,
@@ -132,7 +133,7 @@ WorldMapProgress buildWorldMapProgress({
 
   final shrineProgress = rows.map((row) {
     final rowCards = cardsByRow[row.row] ?? const <KanaCard>[];
-    final masteredCount = rowCards.where(isCardMastered).length;
+    final masteredCount = rowCards.where(isCardCompleted).length;
     final dueCount = rowCards
         .where((card) => !card.nextReviewDate.isAfter(now))
         .length;
@@ -144,15 +145,15 @@ WorldMapProgress buildWorldMapProgress({
       dueCount: dueCount,
       totalCount: totalCount,
       isLocked: row.row > unlockedRow,
-      isMastered: totalCount > 0 && rowCards.every(isCardMastered),
+      isMastered: totalCount > 0 && rowCards.every(isCardCompleted),
     );
   }).toList();
 
-  final xp = masteredCards.length * 25 + dueCards.length * 2;
+  final xp = completedCards.length * 20 + dueCards.length * 2;
 
   return WorldMapProgress(
     dueCount: dueCards.length,
-    masteredCount: masteredCards.length,
+    masteredCount: completedCards.length,
     totalCards: cards.length,
     streakDays: 5,
     rank: rankFromXp(xp),

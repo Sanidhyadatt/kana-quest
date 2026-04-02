@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/app_theme.dart';
+import '../features/base_camp/presentation/base_camp_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/review/presentation/review_arena_screen.dart';
@@ -12,6 +13,7 @@ class AppRoutes {
 
   static const bootstrap = '/bootstrap';
   static const home = '/';
+  static const baseCamp = '/base-camp';
   static const reviewArena = '/review-arena';
   static const onboarding = '/onboarding';
   static const senseiIntro = '/sensei-intro';
@@ -40,6 +42,7 @@ class KanaQuestApp extends StatelessWidget {
         routes: {
           AppRoutes.bootstrap: (context) => const _AppBootstrapScreen(),
           AppRoutes.home: (context) => const HomeScreen(),
+          AppRoutes.baseCamp: (context) => const BaseCampScreen(),
           AppRoutes.reviewArena: (context) => const ReviewArenaScreen(),
           AppRoutes.onboarding: (context) => const OnboardingScreen(),
         },

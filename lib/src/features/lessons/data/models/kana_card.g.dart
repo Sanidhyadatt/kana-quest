@@ -7,7 +7,7 @@ part of 'kana_card.dart';
 // **************************************************************************
 
 // coverage:ignore-file
-// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types, experimental_member_use
+// ignore_for_file: duplicate_ignore, non_constant_identifier_names, constant_identifier_names, invalid_use_of_protected_member, unnecessary_cast, prefer_const_constructors, lines_longer_than_80_chars, require_trailing_commas, inference_failure_on_function_invocation, unnecessary_parenthesis, unnecessary_raw_strings, unnecessary_null_checks, join_return_with_assignment, prefer_final_locals, avoid_js_rounded_ints, avoid_positional_boolean_parameters, always_specify_types
 
 extension GetKanaCardCollection on Isar {
   IsarCollection<KanaCard> get kanaCards => this.collection();
@@ -60,8 +60,7 @@ const KanaCardSchema = CollectionSchema(
     r'script': PropertySchema(
       id: 8,
       name: r'script',
-      type: IsarType.string,
-      enumMap: _KanaCardscriptEnumValueMap,
+      type: IsarType.long,
     )
   },
   estimateSize: _kanaCardEstimateSize,
@@ -69,26 +68,7 @@ const KanaCardSchema = CollectionSchema(
   deserialize: _kanaCardDeserialize,
   deserializeProp: _kanaCardDeserializeProp,
   idName: r'id',
-  indexes: {
-    r'character_script': IndexSchema(
-      id: 2212378284518676764,
-      name: r'character_script',
-      unique: true,
-      replace: false,
-      properties: [
-        IndexPropertySchema(
-          name: r'character',
-          type: IndexType.hash,
-          caseSensitive: true,
-        ),
-        IndexPropertySchema(
-          name: r'script',
-          type: IndexType.hash,
-          caseSensitive: true,
-        )
-      ],
-    )
-  },
+  indexes: {},
   links: {},
   embeddedSchemas: {},
   getId: _kanaCardGetId,
@@ -106,7 +86,6 @@ int _kanaCardEstimateSize(
   bytesCount += 3 + object.character.length * 3;
   bytesCount += 3 + object.mnemonic.length * 3;
   bytesCount += 3 + object.romaji.length * 3;
-  bytesCount += 3 + object.script.name.length * 3;
   return bytesCount;
 }
 
@@ -124,7 +103,7 @@ void _kanaCardSerialize(
   writer.writeLong(offsets[5], object.repetitions);
   writer.writeString(offsets[6], object.romaji);
   writer.writeLong(offsets[7], object.row);
-  writer.writeString(offsets[8], object.script.name);
+  writer.writeLong(offsets[8], object.script);
 }
 
 KanaCard _kanaCardDeserialize(
@@ -143,9 +122,7 @@ KanaCard _kanaCardDeserialize(
   object.repetitions = reader.readLong(offsets[5]);
   object.romaji = reader.readString(offsets[6]);
   object.row = reader.readLong(offsets[7]);
-  object.script =
-      _KanaCardscriptValueEnumMap[reader.readStringOrNull(offsets[8])] ??
-          KanaScript.hiragana;
+  object.script = reader.readLong(offsets[8]);
   return object;
 }
 
@@ -173,21 +150,11 @@ P _kanaCardDeserializeProp<P>(
     case 7:
       return (reader.readLong(offset)) as P;
     case 8:
-      return (_KanaCardscriptValueEnumMap[reader.readStringOrNull(offset)] ??
-          KanaScript.hiragana) as P;
+      return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
-
-const _KanaCardscriptEnumValueMap = {
-  r'hiragana': r'hiragana',
-  r'katakana': r'katakana',
-};
-const _KanaCardscriptValueEnumMap = {
-  r'hiragana': KanaScript.hiragana,
-  r'katakana': KanaScript.katakana,
-};
 
 Id _kanaCardGetId(KanaCard object) {
   return object.id;
@@ -199,94 +166,6 @@ List<IsarLinkBase<dynamic>> _kanaCardGetLinks(KanaCard object) {
 
 void _kanaCardAttach(IsarCollection<dynamic> col, Id id, KanaCard object) {
   object.id = id;
-}
-
-extension KanaCardByIndex on IsarCollection<KanaCard> {
-  Future<KanaCard?> getByCharacterScript(String character, KanaScript script) {
-    return getByIndex(r'character_script', [character, script]);
-  }
-
-  KanaCard? getByCharacterScriptSync(String character, KanaScript script) {
-    return getByIndexSync(r'character_script', [character, script]);
-  }
-
-  Future<bool> deleteByCharacterScript(String character, KanaScript script) {
-    return deleteByIndex(r'character_script', [character, script]);
-  }
-
-  bool deleteByCharacterScriptSync(String character, KanaScript script) {
-    return deleteByIndexSync(r'character_script', [character, script]);
-  }
-
-  Future<List<KanaCard?>> getAllByCharacterScript(
-      List<String> characterValues, List<KanaScript> scriptValues) {
-    final len = characterValues.length;
-    assert(scriptValues.length == len,
-        'All index values must have the same length');
-    final values = <List<dynamic>>[];
-    for (var i = 0; i < len; i++) {
-      values.add([characterValues[i], scriptValues[i]]);
-    }
-
-    return getAllByIndex(r'character_script', values);
-  }
-
-  List<KanaCard?> getAllByCharacterScriptSync(
-      List<String> characterValues, List<KanaScript> scriptValues) {
-    final len = characterValues.length;
-    assert(scriptValues.length == len,
-        'All index values must have the same length');
-    final values = <List<dynamic>>[];
-    for (var i = 0; i < len; i++) {
-      values.add([characterValues[i], scriptValues[i]]);
-    }
-
-    return getAllByIndexSync(r'character_script', values);
-  }
-
-  Future<int> deleteAllByCharacterScript(
-      List<String> characterValues, List<KanaScript> scriptValues) {
-    final len = characterValues.length;
-    assert(scriptValues.length == len,
-        'All index values must have the same length');
-    final values = <List<dynamic>>[];
-    for (var i = 0; i < len; i++) {
-      values.add([characterValues[i], scriptValues[i]]);
-    }
-
-    return deleteAllByIndex(r'character_script', values);
-  }
-
-  int deleteAllByCharacterScriptSync(
-      List<String> characterValues, List<KanaScript> scriptValues) {
-    final len = characterValues.length;
-    assert(scriptValues.length == len,
-        'All index values must have the same length');
-    final values = <List<dynamic>>[];
-    for (var i = 0; i < len; i++) {
-      values.add([characterValues[i], scriptValues[i]]);
-    }
-
-    return deleteAllByIndexSync(r'character_script', values);
-  }
-
-  Future<Id> putByCharacterScript(KanaCard object) {
-    return putByIndex(r'character_script', object);
-  }
-
-  Id putByCharacterScriptSync(KanaCard object, {bool saveLinks = true}) {
-    return putByIndexSync(r'character_script', object, saveLinks: saveLinks);
-  }
-
-  Future<List<Id>> putAllByCharacterScript(List<KanaCard> objects) {
-    return putAllByIndex(r'character_script', objects);
-  }
-
-  List<Id> putAllByCharacterScriptSync(List<KanaCard> objects,
-      {bool saveLinks = true}) {
-    return putAllByIndexSync(r'character_script', objects,
-        saveLinks: saveLinks);
-  }
 }
 
 extension KanaCardQueryWhereSort on QueryBuilder<KanaCard, KanaCard, QWhere> {
@@ -360,96 +239,6 @@ extension KanaCardQueryWhere on QueryBuilder<KanaCard, KanaCard, QWhereClause> {
         upper: upperId,
         includeUpper: includeUpper,
       ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterWhereClause> characterEqualToAnyScript(
-      String character) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'character_script',
-        value: [character],
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterWhereClause>
-      characterNotEqualToAnyScript(String character) {
-    return QueryBuilder.apply(this, (query) {
-      if (query.whereSort == Sort.asc) {
-        return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [],
-              upper: [character],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [character],
-              includeLower: false,
-              upper: [],
-            ));
-      } else {
-        return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [character],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [],
-              upper: [character],
-              includeUpper: false,
-            ));
-      }
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterWhereClause> characterScriptEqualTo(
-      String character, KanaScript script) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'character_script',
-        value: [character, script],
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterWhereClause>
-      characterEqualToScriptNotEqualTo(String character, KanaScript script) {
-    return QueryBuilder.apply(this, (query) {
-      if (query.whereSort == Sort.asc) {
-        return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [character],
-              upper: [character, script],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [character, script],
-              includeLower: false,
-              upper: [character],
-            ));
-      } else {
-        return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [character, script],
-              includeLower: false,
-              upper: [character],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'character_script',
-              lower: [character],
-              upper: [character, script],
-              includeUpper: false,
-            ));
-      }
     });
   }
 }
@@ -1177,54 +966,46 @@ extension KanaCardQueryFilter
   }
 
   QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptEqualTo(
-    KanaScript value, {
-    bool caseSensitive = true,
-  }) {
+      int value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.equalTo(
         property: r'script',
         value: value,
-        caseSensitive: caseSensitive,
       ));
     });
   }
 
   QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptGreaterThan(
-    KanaScript value, {
+    int value, {
     bool include = false,
-    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         include: include,
         property: r'script',
         value: value,
-        caseSensitive: caseSensitive,
       ));
     });
   }
 
   QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptLessThan(
-    KanaScript value, {
+    int value, {
     bool include = false,
-    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.lessThan(
         include: include,
         property: r'script',
         value: value,
-        caseSensitive: caseSensitive,
       ));
     });
   }
 
   QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptBetween(
-    KanaScript lower,
-    KanaScript upper, {
+    int lower,
+    int upper, {
     bool includeLower = true,
     bool includeUpper = true,
-    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
@@ -1233,75 +1014,6 @@ extension KanaCardQueryFilter
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'script',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'script',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptContains(
-      String value,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'script',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'script',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'script',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> scriptIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'script',
-        value: '',
       ));
     });
   }
@@ -1599,10 +1311,9 @@ extension KanaCardQueryWhereDistinct
     });
   }
 
-  QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByScript(
-      {bool caseSensitive = true}) {
+  QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByScript() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'script', caseSensitive: caseSensitive);
+      return query.addDistinctBy(r'script');
     });
   }
 }
@@ -1663,7 +1374,7 @@ extension KanaCardQueryProperty
     });
   }
 
-  QueryBuilder<KanaCard, KanaScript, QQueryOperations> scriptProperty() {
+  QueryBuilder<KanaCard, int, QQueryOperations> scriptProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'script');
     });

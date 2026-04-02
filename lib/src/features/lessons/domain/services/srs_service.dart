@@ -50,6 +50,10 @@ class SrsService {
     return card.interval >= masteryIntervalDays && card.easeFactor >= masteryEaseFactor;
   }
 
+  bool isCardCompleted(KanaCard card) {
+    return card.interval > 0 || card.repetitions > 0;
+  }
+
   bool isRowMastered({
     required int row,
     required Iterable<KanaCard> allCards,
@@ -68,11 +72,23 @@ class SrsService {
   }) {
     var unlockedRow = currentUnlockedRow;
 
-    while (isRowMastered(row: unlockedRow, allCards: allCards)) {
+    while (isRowCompleted(row: unlockedRow, allCards: allCards)) {
       unlockedRow += 1;
     }
 
     return unlockedRow;
+  }
+
+  bool isRowCompleted({
+    required int row,
+    required Iterable<KanaCard> allCards,
+  }) {
+    final cardsInRow = allCards.where((card) => card.row == row).toList();
+    if (cardsInRow.isEmpty) {
+      return false;
+    }
+
+    return cardsInRow.every(isCardCompleted);
   }
 
   int _toSm2Quality(int rating) {
