@@ -1,0 +1,68 @@
+[
+  {
+    "row": 0,
+    "label": "A",
+    "kana": "あ い う え お",
+    "focus": "Base Camp"
+  },
+  {
+    "row": 1,
+    "label": "Ka",
+    "kana": "か き く け こ",
+    "focus": "Stone Steps"
+  },
+  {
+    "row": 2,
+    "label": "Sa",
+    "kana": "さ し す せ そ",
+    "focus": "Wind Ridge"
+  },
+  {
+    "row": 3,
+    "label": "Ta",
+    "kana": "た ち つ て と",
+    "focus": "Temple Walk"
+  },
+  {
+    "row": 4,
+    "label": "Na",
+    "kana": "な に ぬ ね の",
+    "focus": "Lantern Curve"
+  },
+  {
+    "row": 5,
+    "label": "Ha",
+    "kana": "は ひ ふ へ ほ",
+    "focus": "Fox Trail"
+  },
+  {
+    "row": 6,
+    "label": "Ma",
+    "kana": "ま み む め も",
+    "focus": "Moss Bridge"
+  },
+  {
+    "row": 7,
+    "label": "Ya",
+    "kana": "や ゆ よ",
+    "focus": "Cloud Bend"
+  },
+  {
+    "row": 8,
+    "label": "Ra",
+    "kana": "ら り る れ ろ",
+    "focus": "River Path"
+  },
+  {
+    "row": 9,
+    "label": "Wa",
+    "kana": "わ を",
+    "focus": "Gate Arch"
+  },
+  {
+    "row": 10,
+    "label": "N",
+    "kana": "ん",
+    "focus": "Summit Seal"
+  }
+]

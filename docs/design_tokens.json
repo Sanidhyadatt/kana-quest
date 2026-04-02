@@ -1,0 +1,23 @@
+{
+  "project": "projects/3143519714084300888",
+  "designSystem": "assets/c538308acc914b19869fff44aab700fc",
+  "colorMode": "LIGHT",
+  "font": "PLUS_JAKARTA_SANS",
+  "roundness": "ROUND_FULL",
+  "tokens": {
+    "primary": "#7b5455",
+    "primary_container": "#f4c2c2",
+    "on_primary": "#ffffff",
+    "secondary": "#5b5b7e",
+    "tertiary": "#486456",
+    "surface": "#fbf9f5",
+    "surface_container_low": "#f5f3ef",
+    "surface_container": "#efeeea",
+    "surface_container_high": "#eae8e4",
+    "surface_container_highest": "#e4e2de",
+    "surface_container_lowest": "#ffffff",
+    "on_surface": "#1b1c1a",
+    "outline_variant": "#d4c2c2",
+    "error": "#ba1a1a"
+  }
+}
