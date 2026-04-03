@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/achievement.dart';
 import '../domain/dojo_stats.dart';
@@ -59,12 +60,12 @@ class _DojoBody extends StatelessWidget {
   }
 }
 
-class _DojoHeader extends StatelessWidget {
+class _DojoHeader extends ConsumerWidget {
   const _DojoHeader({required this.stats});
   final DojoStats stats;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
 
     return _Card(
@@ -91,12 +92,22 @@ class _DojoHeader extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      'Okaeri, ${stats.userName}!',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Okaeri, ${stats.userName}!',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          onPressed: () => _showEditNameDialog(context, ref),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -118,6 +129,40 @@ class _DojoHeader extends StatelessWidget {
                 fontStyle: FontStyle.italic,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditNameDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(text: stats.userName);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Name'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Your Name'),
+          autofocus: true,
+          maxLength: 15,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('user_name', name);
+                ref.invalidate(dojoStatsProvider);
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

@@ -79,15 +79,23 @@ class _QuizScreenState extends State<QuizScreen>
     } catch (_) {}
   }
 
-  void _generateQuestions() {
+  Future<void> _generateQuestions() async {
+    // Artificial small delay to show the theme's loading state
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    final newQuestions = QuizGenerator().generate(count: _totalQuestions);
+    
     setState(() {
-      _questions = QuizGenerator().generate(count: _totalQuestions);
+      _questions = newQuestions;
       _currentIndex = 0;
       _selectedChoice = null;
       _answered = false;
       _correctCount = 0;
     });
-    _progressController.animateTo(1 / _totalQuestions);
+    if (newQuestions.isNotEmpty) {
+      _progressController.animateTo(1 / _totalQuestions);
+    }
   }
 
   void _onChoiceTap(String choice) {
@@ -139,7 +147,28 @@ class _QuizScreenState extends State<QuizScreen>
     }
 
     if (_questions.isEmpty) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.quiz_rounded, size: 60, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                'Initializing Quiz...',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: _generateQuestions,
+                child: const Text('Still loading? Tap to Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final question = _questions[_currentIndex];

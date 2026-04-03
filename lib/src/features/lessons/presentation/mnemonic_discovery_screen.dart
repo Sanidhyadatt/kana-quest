@@ -48,6 +48,7 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
   bool _practiceMode = false;
   bool _marking = false;
   bool _showStrokeGuide = false;
+  bool _isDrawing = false;
 
   @override
   void initState() {
@@ -176,6 +177,7 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
               // ── Body ────────────────────────────────────────
               Expanded(
                 child: ListView(
+                  physics: _isDrawing ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                   children: [
                     // ── Character hero ───────────────────────────
@@ -393,6 +395,9 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                               _TracingCanvas(
                                 character: widget.character,
                                 strokeCount: strokeCount,
+                                onDrawingStateChanged: (drawing) {
+                                  if (mounted) setState(() => _isDrawing = drawing);
+                                },
                               ),
                             ],
                           ] else ...[
@@ -682,9 +687,11 @@ class _TracingCanvas extends StatefulWidget {
   const _TracingCanvas({
     required this.character,
     required this.strokeCount,
+    this.onDrawingStateChanged,
   });
   final String character;
   final int strokeCount;
+  final ValueChanged<bool>? onDrawingStateChanged;
 
   @override
   State<_TracingCanvas> createState() => _TracingCanvasState();
@@ -767,6 +774,7 @@ class _TracingCanvasState extends State<_TracingCanvas>
 
   void _onPanStart(DragStartDetails d) {
     if (_completed) return;
+    widget.onDrawingStateChanged?.call(true);
     setState(() {
       _currentStrokePoints = [d.localPosition];
       _lastStrokeWasValid = null;
@@ -779,6 +787,7 @@ class _TracingCanvasState extends State<_TracingCanvas>
   }
 
   void _onPanEnd(DragEndDetails _) {
+    widget.onDrawingStateChanged?.call(false);
     if (_completed) return;
     if (_currentStrokePoints.length < 5) {
       // too short — ignore

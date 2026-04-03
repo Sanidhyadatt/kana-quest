@@ -65,11 +65,19 @@ class SenseiFox extends StatelessWidget {
           height: size,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            // Fallback to a simple icon if the asset is missing
-            return Icon(
-              Icons.pets_rounded,
-              size: size,
-              color: scheme.primary,
+            // Fallback: Use a subtle circular shape with the primary color
+            return Container(
+              width: size * 0.8,
+              height: size * 0.8,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.face_rounded,
+                size: size * 0.5,
+                color: scheme.onPrimaryContainer,
+              ),
             );
           },
         ),

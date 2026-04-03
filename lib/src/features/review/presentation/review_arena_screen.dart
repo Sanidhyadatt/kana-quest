@@ -559,42 +559,34 @@ class _RatingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
       children: [
-        Expanded(
-          child: _RateButton(
-            label: 'Again',
-            rating: 1,
-            enabled: enabled,
-            onRate: onRate,
-          ),
+        _RateButton(
+          label: 'Again',
+          rating: 1,
+          enabled: enabled,
+          onRate: onRate,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _RateButton(
-            label: 'Hard',
-            rating: 2,
-            enabled: enabled,
-            onRate: onRate,
-          ),
+        _RateButton(
+          label: 'Hard',
+          rating: 2,
+          enabled: enabled,
+          onRate: onRate,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _RateButton(
-            label: 'Good',
-            rating: 3,
-            enabled: enabled,
-            onRate: onRate,
-          ),
+        _RateButton(
+          label: 'Good',
+          rating: 3,
+          enabled: enabled,
+          onRate: onRate,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _RateButton(
-            label: 'Easy',
-            rating: 4,
-            enabled: enabled,
-            onRate: onRate,
-          ),
+        _RateButton(
+          label: 'Easy',
+          rating: 4,
+          enabled: enabled,
+          onRate: onRate,
         ),
       ],
     );
@@ -617,6 +609,10 @@ class _RateButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FilledButton(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        minimumSize: const Size(64, 36),
+      ),
       onPressed: enabled ? () => onRate(rating) : null,
       child: Text(label),
     );

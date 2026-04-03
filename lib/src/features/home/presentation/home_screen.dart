@@ -175,17 +175,6 @@ class _LearnTab extends ConsumerWidget {
                     },
                   ),
                 ),
-                Positioned(
-                  bottom: 24,
-                  right: 24,
-                  child: SenseiFox(
-                    size: 100,
-                    showSpeechBubble: true,
-                    speechText: progress.dueCount > 0
-                        ? 'You have ${progress.dueCount} cards to review!'
-                        : 'Ready for a new lesson?',
-                  ),
-                ),
               ],
             );
           },
@@ -533,14 +522,14 @@ class _ShrineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 280),
+      constraints: const BoxConstraints(maxWidth: 240),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

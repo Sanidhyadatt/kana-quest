@@ -104,9 +104,12 @@ class QuizGenerator {
 
   List<QuizQuestion> _generateVocabQuestions() {
     final questions = <QuizQuestion>[];
-    final words = List<VocabularyWord>.from(_vocabRepo.getAllWords())..shuffle(_rng);
+    final allWords = _vocabRepo.getAllWords();
+    if (allWords.isEmpty) return questions;
 
-    for (final word in words.take(30)) {
+    final words = List<VocabularyWord>.from(allWords)..shuffle(_rng);
+
+    for (final word in words.take(20)) {
       // Type A: show Japanese → choose English
       final wrongEnglish = _vocabRepo.getAllWords()
           .where((w) => w.english != word.english)
