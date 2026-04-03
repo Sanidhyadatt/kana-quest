@@ -1,0 +1,68 @@
+[
+  {
+    "row": 0,
+    "label": "A",
+    "kana": "ア イ ウ エ オ",
+    "focus": "Neon Base"
+  },
+  {
+    "row": 1,
+    "label": "Ka",
+    "kana": "カ キ ク ケ コ",
+    "focus": "Circuit Step"
+  },
+  {
+    "row": 2,
+    "label": "Sa",
+    "kana": "サ シ ス セ ソ",
+    "focus": "Signal Ridge"
+  },
+  {
+    "row": 3,
+    "label": "Ta",
+    "kana": "タ チ ツ テ ト",
+    "focus": "Terminal Walk"
+  },
+  {
+    "row": 4,
+    "label": "Na",
+    "kana": "ナ ニ ヌ ネ ノ",
+    "focus": "Node Curve"
+  },
+  {
+    "row": 5,
+    "label": "Ha",
+    "kana": "ハ ヒ フ ヘ ホ",
+    "focus": "Habitat Trail"
+  },
+  {
+    "row": 6,
+    "label": "Ma",
+    "kana": "マ ミ ム メ モ",
+    "focus": "Memory Bridge"
+  },
+  {
+    "row": 7,
+    "label": "Ya",
+    "kana": "ヤ ユ ヨ",
+    "focus": "Yard Bend"
+  },
+  {
+    "row": 8,
+    "label": "Ra",
+    "kana": "ラ リ ル レ ロ",
+    "focus": "Relay Path"
+  },
+  {
+    "row": 9,
+    "label": "Wa",
+    "kana": "ワ ヲ",
+    "focus": "Wave Arch"
+  },
+  {
+    "row": 10,
+    "label": "N",
+    "kana": "ン",
+    "focus": "Network Seal"
+  }
+]

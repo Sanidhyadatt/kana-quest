@@ -10,12 +10,15 @@ import 'package:isar/isar.dart';
 import '../../../core/storage/isar_database.dart';
 import '../../lessons/data/models/kana_card.dart';
 import '../../lessons/data/seed/kana_seed_data.dart';
+import '../../lessons/presentation/mnemonic_discovery_screen.dart';
 import '../../lessons/domain/services/srs_service.dart';
+import '../../../core/services/streak_service.dart';
 
 class ReviewArenaScreen extends StatefulWidget {
-  const ReviewArenaScreen({super.key, this.initialRow});
+  const ReviewArenaScreen({super.key, this.initialRow, this.scriptType = 0});
 
   final int? initialRow;
+  final int scriptType;
 
   @override
   State<ReviewArenaScreen> createState() => _ReviewArenaScreenState();
@@ -41,8 +44,9 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
 
   static final Map<int, Map<String, int>> _rowCharacterOrder = () {
     final order = <int, Map<String, int>>{};
-    for (var i = 0; i < seedKanaCards.length; i += 1) {
-      final seed = seedKanaCards[i];
+    final allSeeds = [...seedKanaCards, ...seedKatakanaCards, ...seedKanjiCards];
+    for (var i = 0; i < allSeeds.length; i += 1) {
+      final seed = allSeeds[i];
       final rowOrder = order.putIfAbsent(seed.row, () => <String, int>{});
       rowOrder[seed.character] = i;
     }
@@ -83,7 +87,7 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     final cards = await isar.kanaCards.where().findAll();
 
     final validCards = cards
-        .where((card) => card.character.trim().runes.length == 1)
+        .where((card) => card.character.trim().isNotEmpty && card.script == widget.scriptType)
         .toList();
 
     final availableRows = validCards.map((card) => card.row).toSet().toList()
@@ -161,6 +165,8 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
       _comboStreak = rating >= 3 ? _comboStreak + 1 : 0;
     });
 
+    await const StreakService().recordReview();
+
     if (_dueCards.isEmpty) {
       _confettiController.play();
     }
@@ -209,7 +215,6 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
           return true;
         }
       } catch (_) {
-        // Try next command.
       }
     }
 
@@ -219,7 +224,10 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   void _continueToNextSection() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (context) => ReviewArenaScreen(initialRow: _activeRow + 1),
+        builder: (context) => ReviewArenaScreen(
+          initialRow: _activeRow + 1,
+          scriptType: widget.scriptType,
+        ),
       ),
     );
   }
@@ -285,6 +293,7 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   Widget _buildActiveSession(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final card = _dueCards.first;
+    final scriptLabel = card.script == 0 ? 'Hiragana' : card.script == 1 ? 'Katakana' : 'Kanji';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -317,9 +326,7 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
                       _CardKanaText(value: card.character),
                       const SizedBox(height: 12),
                       Text(
-                        card.script == 0
-                            ? 'Hiragana'
-                            : 'Katakana',
+                        scriptLabel,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
@@ -327,30 +334,64 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
                   ),
                 ),
                 back: _CardFace(
-                  title: 'Mnemonic',
+                  title: 'Result',
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      Text(
+                        'Pronunciation: ${card.romaji.toUpperCase()}',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                       Text(
                         card.mnemonic,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: scheme.onSurface,
                           height: 1.4,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        card.romaji,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                      const SizedBox(height: 20),
-                      FilledButton.tonalIcon(
-                        onPressed: () => _playAudioHint(card.character),
-                        icon: const Icon(Icons.volume_up_rounded),
-                        label: const Text('Play Audio'),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          FilledButton.tonalIcon(
+                            onPressed: () => _playAudioHint(card.character),
+                            icon: const Icon(Icons.volume_up_rounded),
+                            label: const Text('Audio'),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => Container(
+                                  height: MediaQuery.of(context).size.height * 0.85,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surface,
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                                  ),
+                                  child: MnemonicDiscoveryScreen(
+                                    character: card.character,
+                                    romaji: card.romaji,
+                                    mnemonic: card.mnemonic,
+                                    relatedWords: card.relatedWords,
+                                    scriptType: card.script,
+                                    showGotIt: false,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.lightbulb_outline_rounded),
+                            label: const Text('Guide'),
+                          ),
+                        ],
                       ),
                     ],
                   ),

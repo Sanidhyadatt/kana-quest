@@ -42,23 +42,28 @@ const KanaCardSchema = CollectionSchema(
       name: r'nextReviewDate',
       type: IsarType.dateTime,
     ),
-    r'repetitions': PropertySchema(
+    r'relatedWords': PropertySchema(
       id: 5,
+      name: r'relatedWords',
+      type: IsarType.string,
+    ),
+    r'repetitions': PropertySchema(
+      id: 6,
       name: r'repetitions',
       type: IsarType.long,
     ),
     r'romaji': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'romaji',
       type: IsarType.string,
     ),
     r'row': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'row',
       type: IsarType.long,
     ),
     r'script': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'script',
       type: IsarType.long,
     )
@@ -85,6 +90,12 @@ int _kanaCardEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.character.length * 3;
   bytesCount += 3 + object.mnemonic.length * 3;
+  {
+    final value = object.relatedWords;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.romaji.length * 3;
   return bytesCount;
 }
@@ -100,10 +111,11 @@ void _kanaCardSerialize(
   writer.writeLong(offsets[2], object.interval);
   writer.writeString(offsets[3], object.mnemonic);
   writer.writeDateTime(offsets[4], object.nextReviewDate);
-  writer.writeLong(offsets[5], object.repetitions);
-  writer.writeString(offsets[6], object.romaji);
-  writer.writeLong(offsets[7], object.row);
-  writer.writeLong(offsets[8], object.script);
+  writer.writeString(offsets[5], object.relatedWords);
+  writer.writeLong(offsets[6], object.repetitions);
+  writer.writeString(offsets[7], object.romaji);
+  writer.writeLong(offsets[8], object.row);
+  writer.writeLong(offsets[9], object.script);
 }
 
 KanaCard _kanaCardDeserialize(
@@ -119,10 +131,11 @@ KanaCard _kanaCardDeserialize(
   object.interval = reader.readLong(offsets[2]);
   object.mnemonic = reader.readString(offsets[3]);
   object.nextReviewDate = reader.readDateTime(offsets[4]);
-  object.repetitions = reader.readLong(offsets[5]);
-  object.romaji = reader.readString(offsets[6]);
-  object.row = reader.readLong(offsets[7]);
-  object.script = reader.readLong(offsets[8]);
+  object.relatedWords = reader.readStringOrNull(offsets[5]);
+  object.repetitions = reader.readLong(offsets[6]);
+  object.romaji = reader.readString(offsets[7]);
+  object.row = reader.readLong(offsets[8]);
+  object.script = reader.readLong(offsets[9]);
   return object;
 }
 
@@ -144,12 +157,14 @@ P _kanaCardDeserializeProp<P>(
     case 4:
       return (reader.readDateTime(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 6:
-      return (reader.readString(offset)) as P;
-    case 7:
       return (reader.readLong(offset)) as P;
+    case 7:
+      return (reader.readString(offset)) as P;
     case 8:
+      return (reader.readLong(offset)) as P;
+    case 9:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -728,6 +743,157 @@ extension KanaCardQueryFilter
     });
   }
 
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'relatedWords',
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      relatedWordsIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'relatedWords',
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'relatedWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      relatedWordsGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'relatedWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'relatedWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'relatedWords',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      relatedWordsStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'relatedWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'relatedWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'relatedWords',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> relatedWordsMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'relatedWords',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      relatedWordsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'relatedWords',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      relatedWordsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'relatedWords',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> repetitionsEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1086,6 +1252,18 @@ extension KanaCardQuerySortBy on QueryBuilder<KanaCard, KanaCard, QSortBy> {
     });
   }
 
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> sortByRelatedWords() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedWords', Sort.asc);
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> sortByRelatedWordsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedWords', Sort.desc);
+    });
+  }
+
   QueryBuilder<KanaCard, KanaCard, QAfterSortBy> sortByRepetitions() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'repetitions', Sort.asc);
@@ -1209,6 +1387,18 @@ extension KanaCardQuerySortThenBy
     });
   }
 
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> thenByRelatedWords() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedWords', Sort.asc);
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> thenByRelatedWordsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'relatedWords', Sort.desc);
+    });
+  }
+
   QueryBuilder<KanaCard, KanaCard, QAfterSortBy> thenByRepetitions() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'repetitions', Sort.asc);
@@ -1292,6 +1482,13 @@ extension KanaCardQueryWhereDistinct
     });
   }
 
+  QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByRelatedWords(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'relatedWords', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByRepetitions() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'repetitions');
@@ -1353,6 +1550,12 @@ extension KanaCardQueryProperty
   QueryBuilder<KanaCard, DateTime, QQueryOperations> nextReviewDateProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'nextReviewDate');
+    });
+  }
+
+  QueryBuilder<KanaCard, String?, QQueryOperations> relatedWordsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'relatedWords');
     });
   }
 

@@ -1,0 +1,138 @@
+import '../domain/vocabulary_word.dart';
+
+class VocabularyRepository {
+  const VocabularyRepository();
+
+  List<VocabularyWord> getAllWords() => _words;
+
+  List<VocabularyWord> searchWords(String query) {
+    if (query.isEmpty) return _words;
+    final q = query.toLowerCase();
+    return _words.where((w) =>
+      w.japanese.contains(query) ||
+      w.furigana.contains(query) ||
+      w.romaji.toLowerCase().contains(q) ||
+      w.english.toLowerCase().contains(q)
+    ).toList();
+  }
+
+  List<String> getCategories() {
+    final cats = <String>{'All'};
+    for (final w in _words) {
+      cats.add(w.category);
+    }
+    return cats.toList();
+  }
+}
+
+const _words = <VocabularyWord>[
+  // ── Greetings ──────────────────────────────────────────────
+  VocabularyWord(japanese: 'こんにちは', furigana: 'こんにちは', romaji: 'Konnichiwa', english: 'Hello / Good afternoon', category: 'Greetings'),
+  VocabularyWord(japanese: 'おはようございます', furigana: 'おはようございます', romaji: 'Ohayou gozaimasu', english: 'Good morning', category: 'Greetings'),
+  VocabularyWord(japanese: 'こんばんは', furigana: 'こんばんは', romaji: 'Konbanwa', english: 'Good evening', category: 'Greetings'),
+  VocabularyWord(japanese: 'さようなら', furigana: 'さようなら', romaji: 'Sayounara', english: 'Goodbye', category: 'Greetings'),
+  VocabularyWord(japanese: 'またね', furigana: 'またね', romaji: 'Mata ne', english: 'See you later', category: 'Greetings'),
+  VocabularyWord(japanese: 'はじめまして', furigana: 'はじめまして', romaji: 'Hajimemashite', english: 'Nice to meet you', category: 'Greetings'),
+  VocabularyWord(japanese: 'おやすみなさい', furigana: 'おやすみなさい', romaji: 'Oyasumi nasai', english: 'Good night', category: 'Greetings'),
+  VocabularyWord(japanese: 'ありがとう', furigana: 'ありがとう', romaji: 'Arigatou', english: 'Thank you', category: 'Greetings'),
+  VocabularyWord(japanese: 'すみません', furigana: 'すみません', romaji: 'Sumimasen', english: 'Excuse me / Sorry', category: 'Greetings'),
+  VocabularyWord(japanese: 'どういたしまして', furigana: 'どういたしまして', romaji: 'Dou itashimashite', english: "You're welcome", category: 'Greetings'),
+
+  // ── Numbers ────────────────────────────────────────────────
+  VocabularyWord(japanese: '一', furigana: 'いち', romaji: 'Ichi', english: 'One', category: 'Numbers'),
+  VocabularyWord(japanese: '二', furigana: 'に', romaji: 'Ni', english: 'Two', category: 'Numbers'),
+  VocabularyWord(japanese: '三', furigana: 'さん', romaji: 'San', english: 'Three', category: 'Numbers'),
+  VocabularyWord(japanese: '四', furigana: 'よん', romaji: 'Yon / Shi', english: 'Four', category: 'Numbers'),
+  VocabularyWord(japanese: '五', furigana: 'ご', romaji: 'Go', english: 'Five', category: 'Numbers'),
+  VocabularyWord(japanese: '六', furigana: 'ろく', romaji: 'Roku', english: 'Six', category: 'Numbers'),
+  VocabularyWord(japanese: '七', furigana: 'なな', romaji: 'Nana / Shichi', english: 'Seven', category: 'Numbers'),
+  VocabularyWord(japanese: '八', furigana: 'はち', romaji: 'Hachi', english: 'Eight', category: 'Numbers'),
+  VocabularyWord(japanese: '九', furigana: 'きゅう', romaji: 'Kyuu / Ku', english: 'Nine', category: 'Numbers'),
+  VocabularyWord(japanese: '十', furigana: 'じゅう', romaji: 'Juu', english: 'Ten', category: 'Numbers'),
+  VocabularyWord(japanese: '百', furigana: 'ひゃく', romaji: 'Hyaku', english: 'Hundred', category: 'Numbers'),
+  VocabularyWord(japanese: '千', furigana: 'せん', romaji: 'Sen', english: 'Thousand', category: 'Numbers'),
+
+  // ── Time ───────────────────────────────────────────────────
+  VocabularyWord(japanese: '今日', furigana: 'きょう', romaji: 'Kyou', english: 'Today', category: 'Time'),
+  VocabularyWord(japanese: '明日', furigana: 'あした', romaji: 'Ashita', english: 'Tomorrow', category: 'Time'),
+  VocabularyWord(japanese: '昨日', furigana: 'きのう', romaji: 'Kinou', english: 'Yesterday', category: 'Time'),
+  VocabularyWord(japanese: '今', furigana: 'いま', romaji: 'Ima', english: 'Now', category: 'Time'),
+  VocabularyWord(japanese: '朝', furigana: 'あさ', romaji: 'Asa', english: 'Morning', category: 'Time'),
+  VocabularyWord(japanese: '昼', furigana: 'ひる', romaji: 'Hiru', english: 'Noon / Daytime', category: 'Time'),
+  VocabularyWord(japanese: '夜', furigana: 'よる', romaji: 'Yoru', english: 'Night', category: 'Time'),
+  VocabularyWord(japanese: '週', furigana: 'しゅう', romaji: 'Shuu', english: 'Week', category: 'Time'),
+  VocabularyWord(japanese: '月', furigana: 'つき', romaji: 'Tsuki', english: 'Month / Moon', category: 'Time'),
+  VocabularyWord(japanese: '年', furigana: 'とし', romaji: 'Toshi', english: 'Year', category: 'Time'),
+
+  // ── Food ───────────────────────────────────────────────────
+  VocabularyWord(japanese: 'ご飯', furigana: 'ごはん', romaji: 'Gohan', english: 'Rice / Meal', category: 'Food'),
+  VocabularyWord(japanese: 'パン', furigana: 'ぱん', romaji: 'Pan', english: 'Bread', category: 'Food'),
+  VocabularyWord(japanese: '水', furigana: 'みず', romaji: 'Mizu', english: 'Water', category: 'Food'),
+  VocabularyWord(japanese: 'お茶', furigana: 'おちゃ', romaji: 'Ocha', english: 'Tea', category: 'Food'),
+  VocabularyWord(japanese: '肉', furigana: 'にく', romaji: 'Niku', english: 'Meat', category: 'Food'),
+  VocabularyWord(japanese: '魚', furigana: 'さかな', romaji: 'Sakana', english: 'Fish', category: 'Food'),
+  VocabularyWord(japanese: '卵', furigana: 'たまご', romaji: 'Tamago', english: 'Egg', category: 'Food'),
+  VocabularyWord(japanese: '野菜', furigana: 'やさい', romaji: 'Yasai', english: 'Vegetables', category: 'Food'),
+  VocabularyWord(japanese: '果物', furigana: 'くだもの', romaji: 'Kudamono', english: 'Fruit', category: 'Food'),
+  VocabularyWord(japanese: 'りんご', furigana: 'りんご', romaji: 'Ringo', english: 'Apple', category: 'Food'),
+  VocabularyWord(japanese: 'ラーメン', furigana: 'らーめん', romaji: 'Raamen', english: 'Ramen', category: 'Food'),
+  VocabularyWord(japanese: '寿司', furigana: 'すし', romaji: 'Sushi', english: 'Sushi', category: 'Food'),
+
+  // ── Nature ─────────────────────────────────────────────────
+  VocabularyWord(japanese: '山', furigana: 'やま', romaji: 'Yama', english: 'Mountain', category: 'Nature'),
+  VocabularyWord(japanese: '川', furigana: 'かわ', romaji: 'Kawa', english: 'River', category: 'Nature'),
+  VocabularyWord(japanese: '海', furigana: 'うみ', romaji: 'Umi', english: 'Sea / Ocean', category: 'Nature'),
+  VocabularyWord(japanese: '空', furigana: 'そら', romaji: 'Sora', english: 'Sky', category: 'Nature'),
+  VocabularyWord(japanese: '花', furigana: 'はな', romaji: 'Hana', english: 'Flower', category: 'Nature'),
+  VocabularyWord(japanese: '木', furigana: 'き', romaji: 'Ki', english: 'Tree', category: 'Nature'),
+  VocabularyWord(japanese: '雨', furigana: 'あめ', romaji: 'Ame', english: 'Rain', category: 'Nature'),
+  VocabularyWord(japanese: '雪', furigana: 'ゆき', romaji: 'Yuki', english: 'Snow', category: 'Nature'),
+  VocabularyWord(japanese: '風', furigana: 'かぜ', romaji: 'Kaze', english: 'Wind', category: 'Nature'),
+  VocabularyWord(japanese: '火', furigana: 'ひ', romaji: 'Hi', english: 'Fire', category: 'Nature'),
+
+  // ── People & Family ────────────────────────────────────────
+  VocabularyWord(japanese: '人', furigana: 'ひと', romaji: 'Hito', english: 'Person', category: 'People'),
+  VocabularyWord(japanese: '友達', furigana: 'ともだち', romaji: 'Tomodachi', english: 'Friend', category: 'People'),
+  VocabularyWord(japanese: '家族', furigana: 'かぞく', romaji: 'Kazoku', english: 'Family', category: 'People'),
+  VocabularyWord(japanese: 'お父さん', furigana: 'おとうさん', romaji: 'Otousan', english: 'Father', category: 'People'),
+  VocabularyWord(japanese: 'お母さん', furigana: 'おかあさん', romaji: 'Okaasan', english: 'Mother', category: 'People'),
+  VocabularyWord(japanese: 'お兄さん', furigana: 'おにいさん', romaji: 'Oniisan', english: 'Older brother', category: 'People'),
+  VocabularyWord(japanese: 'お姉さん', furigana: 'おねえさん', romaji: 'Oneesan', english: 'Older sister', category: 'People'),
+  VocabularyWord(japanese: '先生', furigana: 'せんせい', romaji: 'Sensei', english: 'Teacher', category: 'People'),
+  VocabularyWord(japanese: '学生', furigana: 'がくせい', romaji: 'Gakusei', english: 'Student', category: 'People'),
+
+  // ── Common Verbs ───────────────────────────────────────────
+  VocabularyWord(japanese: '食べる', furigana: 'たべる', romaji: 'Taberu', english: 'To eat', category: 'Verbs'),
+  VocabularyWord(japanese: '飲む', furigana: 'のむ', romaji: 'Nomu', english: 'To drink', category: 'Verbs'),
+  VocabularyWord(japanese: '行く', furigana: 'いく', romaji: 'Iku', english: 'To go', category: 'Verbs'),
+  VocabularyWord(japanese: '来る', furigana: 'くる', romaji: 'Kuru', english: 'To come', category: 'Verbs'),
+  VocabularyWord(japanese: '見る', furigana: 'みる', romaji: 'Miru', english: 'To see / watch', category: 'Verbs'),
+  VocabularyWord(japanese: '聞く', furigana: 'きく', romaji: 'Kiku', english: 'To hear / listen', category: 'Verbs'),
+  VocabularyWord(japanese: '話す', furigana: 'はなす', romaji: 'Hanasu', english: 'To speak', category: 'Verbs'),
+  VocabularyWord(japanese: '読む', furigana: 'よむ', romaji: 'Yomu', english: 'To read', category: 'Verbs'),
+  VocabularyWord(japanese: '書く', furigana: 'かく', romaji: 'Kaku', english: 'To write', category: 'Verbs'),
+  VocabularyWord(japanese: '分かる', furigana: 'わかる', romaji: 'Wakaru', english: 'To understand', category: 'Verbs'),
+  VocabularyWord(japanese: '好き', furigana: 'すき', romaji: 'Suki', english: 'To like', category: 'Verbs'),
+
+  // ── Adjectives ─────────────────────────────────────────────
+  VocabularyWord(japanese: '大きい', furigana: 'おおきい', romaji: 'Ookii', english: 'Big / Large', category: 'Adjectives'),
+  VocabularyWord(japanese: '小さい', furigana: 'ちいさい', romaji: 'Chiisai', english: 'Small / Little', category: 'Adjectives'),
+  VocabularyWord(japanese: '熱い', furigana: 'あつい', romaji: 'Atsui', english: 'Hot', category: 'Adjectives'),
+  VocabularyWord(japanese: '冷たい', furigana: 'つめたい', romaji: 'Tsumetai', english: 'Cold', category: 'Adjectives'),
+  VocabularyWord(japanese: '良い', furigana: 'よい', romaji: 'Yoi', english: 'Good', category: 'Adjectives'),
+  VocabularyWord(japanese: '悪い', furigana: 'わるい', romaji: 'Warui', english: 'Bad', category: 'Adjectives'),
+  VocabularyWord(japanese: '楽しい', furigana: 'たのしい', romaji: 'Tanoshii', english: 'Fun / Enjoyable', category: 'Adjectives'),
+  VocabularyWord(japanese: '難しい', furigana: 'むずかしい', romaji: 'Muzukashii', english: 'Difficult', category: 'Adjectives'),
+  VocabularyWord(japanese: '簡単', furigana: 'かんたん', romaji: 'Kantan', english: 'Easy / Simple', category: 'Adjectives'),
+  VocabularyWord(japanese: '新しい', furigana: 'あたらしい', romaji: 'Atarashii', english: 'New', category: 'Adjectives'),
+  VocabularyWord(japanese: '古い', furigana: 'ふるい', romaji: 'Furui', english: 'Old', category: 'Adjectives'),
+
+  // ── Places ─────────────────────────────────────────────────
+  VocabularyWord(japanese: '学校', furigana: 'がっこう', romaji: 'Gakkou', english: 'School', category: 'Places'),
+  VocabularyWord(japanese: '病院', furigana: 'びょういん', romaji: 'Byouin', english: 'Hospital', category: 'Places'),
+  VocabularyWord(japanese: '駅', furigana: 'えき', romaji: 'Eki', english: 'Train station', category: 'Places'),
+  VocabularyWord(japanese: 'お店', furigana: 'おみせ', romaji: 'Omise', english: 'Shop / Store', category: 'Places'),
+  VocabularyWord(japanese: '家', furigana: 'いえ', romaji: 'Ie', english: 'House / Home', category: 'Places'),
+  VocabularyWord(japanese: '図書館', furigana: 'としょかん', romaji: 'Toshokan', english: 'Library', category: 'Places'),
+  VocabularyWord(japanese: '公園', furigana: 'こうえん', romaji: 'Kouen', english: 'Park', category: 'Places'),
+];

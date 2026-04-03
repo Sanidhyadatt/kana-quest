@@ -22,4 +22,7 @@ class KanaCard {
   int interval = 0;
   int repetitions = 0;
   late DateTime nextReviewDate;
+  
+  /// Semi-colon separated words and meanings (e.g., "Word1|Meaning1;Word2|Meaning2").
+  String? relatedWords;
 }

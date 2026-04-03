@@ -1,0 +1,26 @@
+[
+  {
+    "row": 0,
+    "label": "Basic 1",
+    "kana": "一 二 三 四 五",
+    "focus": "Temple Gate"
+  },
+  {
+    "row": 1,
+    "label": "Basic 2",
+    "kana": "六 七 八 九 十",
+    "focus": "Old Way"
+  },
+  {
+    "row": 2,
+    "label": "Nature",
+    "kana": "日 月 火 水 木 金 土",
+    "focus": "Nature Garden"
+  },
+  {
+    "row": 3,
+    "label": "Directions",
+    "kana": "上 下 左 右 中",
+    "focus": "Compass Path"
+  }
+]

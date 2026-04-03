@@ -12,14 +12,24 @@ final isarProvider = FutureProvider<Isar>((ref) async {
   return IsarDatabase.getInstance();
 });
 
-final hiraganaRowsProvider = FutureProvider<List<HiraganaRow>>((ref) async {
-  return const HiraganaRowsRepository().loadRows();
+final selectedScriptProvider = StateProvider<int>((ref) => 0); // 0: Hiragana, 1: Katakana, 2: Kanji
+
+final kanaRowsProvider = FutureProvider<List<HiraganaRow>>((ref) async {
+  final scriptType = ref.watch(selectedScriptProvider);
+  return const KanaRowsRepository().loadRows(scriptType);
 });
 
 final worldMapProgressProvider = FutureProvider<WorldMapProgress>((ref) async {
   final isar = await ref.watch(isarProvider.future);
-  final rows = await ref.watch(hiraganaRowsProvider.future);
-  final cards = await isar.kanaCards.where().findAll();
+  final scriptType = ref.watch(selectedScriptProvider);
+  final rows = await ref.watch(kanaRowsProvider.future);
+  
+  final cards = await isar.kanaCards
+      .where()
+      .filter()
+      .scriptEqualTo(scriptType)
+      .findAll();
+  
   final srsService = SrsService();
 
   return buildWorldMapProgress(

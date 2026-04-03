@@ -1,14 +1,18 @@
 import 'dart:convert';
-
 import 'package:flutter/services.dart';
-
 import '../domain/hiragana_row.dart';
 
-class HiraganaRowsRepository {
-  const HiraganaRowsRepository();
+class KanaRowsRepository {
+  const KanaRowsRepository();
 
-  Future<List<HiraganaRow>> loadRows() async {
-    final rawJson = await rootBundle.loadString('assets/hiragana_rows.json');
+  Future<List<HiraganaRow>> loadRows(int scriptType) async {
+    final filename = scriptType == 0
+        ? 'assets/hiragana_rows.json'
+        : scriptType == 1
+            ? 'assets/katakana_rows.json'
+            : 'assets/kanji_rows.json';
+    
+    final rawJson = await rootBundle.loadString(filename);
     final decoded = jsonDecode(rawJson) as List<dynamic>;
 
     final rows =

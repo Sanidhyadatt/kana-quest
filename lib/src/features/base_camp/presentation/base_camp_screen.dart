@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../home/presentation/home_providers.dart';
 import '../../review/presentation/review_arena_screen.dart';
 
-class BaseCampScreen extends StatelessWidget {
-  const BaseCampScreen({super.key});
+class BaseCampScreen extends ConsumerWidget {
+  const BaseCampScreen({super.key, this.scriptType = 0});
+  final int scriptType;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the global script provider for consistency
+    final activeScriptType = ref.watch(selectedScriptProvider);
+    final scriptName = activeScriptType == 0 ? 'Hiragana' : activeScriptType == 1 ? 'Katakana' : 'Kanji';
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -38,7 +44,7 @@ class BaseCampScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'This is the first open path in Kana Quest. Use it to begin your Hiragana journey, review cards, and build momentum.',
+                  'This is the first open path in Kana Quest. Use it to begin your $scriptName journey, review cards, and build momentum.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -48,8 +54,9 @@ class BaseCampScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (context) => const ReviewArenaScreen(
+                        builder: (context) => ReviewArenaScreen(
                           initialRow: 0,
+                          scriptType: activeScriptType,
                         ),
                       ),
                     );

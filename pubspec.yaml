@@ -41,6 +41,8 @@ dependencies:
   isar_flutter_libs: ^3.1.0+1
   path_provider: ^2.1.5
   shared_preferences: ^2.5.2
+  path_drawing: ^1.0.1
+  path_parsing: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -69,6 +71,8 @@ flutter:
 
   assets:
     - assets/hiragana_rows.json
+    - assets/katakana_rows.json
+    - assets/kanji_rows.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
