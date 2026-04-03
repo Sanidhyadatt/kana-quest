@@ -14,6 +14,8 @@ final isarProvider = FutureProvider<Isar>((ref) async {
 
 final selectedScriptProvider = StateProvider<int>((ref) => 0); // 0: Hiragana, 1: Katakana, 2: Kanji
 
+final selectedTabProvider = StateProvider<int>((ref) => 0); // 0: Learn, 1: Vocabulary, 2: Quiz, 3: Profile
+
 final kanaRowsProvider = FutureProvider<List<HiraganaRow>>((ref) async {
   final scriptType = ref.watch(selectedScriptProvider);
   return const KanaRowsRepository().loadRows(scriptType);

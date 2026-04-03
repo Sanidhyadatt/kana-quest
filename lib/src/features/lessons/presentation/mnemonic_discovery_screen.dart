@@ -924,10 +924,11 @@ class _TracingCanvasState extends State<_TracingCanvas>
             onPanDown: _onPanDown,
             onPanCancel: _onPanCancel,
             // Absorbs vertical drag to prevent ListView scroll on Android
-            onVerticalDragStart: (_) {},
-            onVerticalDragUpdate: (_) {},
-            onVerticalDragEnd: (_) {},
-            onVerticalDragCancel: () {},
+            // Map to pan handlers so strokes are still recorded during vertical moves
+            onVerticalDragStart: _onPanStart,
+            onVerticalDragUpdate: _onPanUpdate,
+            onVerticalDragEnd: _onPanEnd,
+            onVerticalDragCancel: _onPanCancel,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final side = constraints.maxWidth;

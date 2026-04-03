@@ -12,18 +12,12 @@ import '../domain/world_map_progress.dart';
 import 'home_providers.dart';
 
 /// Root shell that owns the bottom navigation bar.
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _tab = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tab = ref.watch(selectedTabProvider);
     final scheme = Theme.of(context).colorScheme;
 
     final destinations = <NavigationDestination>[
@@ -51,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: IndexedStack(
-        index: _tab,
+        index: tab,
         children: const [
           _LearnTab(),
           VocabularyScreen(),
@@ -60,8 +54,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        selectedIndex: tab,
+        onDestinationSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
         destinations: destinations,
         backgroundColor: scheme.surface,
         indicatorColor: scheme.primaryContainer,

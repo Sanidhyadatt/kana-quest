@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../home/presentation/home_providers.dart';
 import '../../../app/app.dart';
 import '../domain/quiz_generator.dart';
 import '../domain/quiz_question.dart';
 
-class QuizScreen extends StatefulWidget {
+class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key});
 
   @override
-  State<QuizScreen> createState() => _QuizScreenState();
+  ConsumerState<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen>
+class _QuizScreenState extends ConsumerState<QuizScreen>
     with TickerProviderStateMixin {
   static const _totalQuestions = 10;
 
@@ -578,7 +580,7 @@ class _FeedbackBanner extends StatelessWidget {
   }
 }
 
-class _ScoreScreen extends StatelessWidget {
+class _ScoreScreen extends ConsumerWidget {
   const _ScoreScreen({
     required this.correct,
     required this.total,
@@ -590,7 +592,7 @@ class _ScoreScreen extends StatelessWidget {
   final VoidCallback onRestart;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final pct = (correct / total * 100).round();
     final emoji = pct == 100 ? '🏆' : pct >= 80 ? '🎉' : pct >= 60 ? '😊' : '📚';
@@ -677,7 +679,11 @@ class _ScoreScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        // Switch back to Learn tab and reset quiz state by generating new questions
+                        ref.read(selectedTabProvider.notifier).state = 0;
+                        onRestart(); 
+                      },
                       icon: const Icon(Icons.home_rounded),
                       label: const Text('Back to Home',
                           style: TextStyle(fontWeight: FontWeight.w700)),
