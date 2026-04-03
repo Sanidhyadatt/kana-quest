@@ -1,7 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
+import '../../lessons/data/seed/stroke_order_data.dart';
 import '../domain/quiz_generator.dart';
 import '../domain/quiz_question.dart';
 
@@ -16,6 +17,8 @@ class _QuizScreenState extends State<QuizScreen>
     with TickerProviderStateMixin {
   static const _totalQuestions = 10;
 
+  final FlutterTts _tts = FlutterTts();
+  bool _ttsAvailable = false;
   List<QuizQuestion> _questions = [];
   int _currentIndex = 0;
   String? _selectedChoice;
@@ -29,6 +32,7 @@ class _QuizScreenState extends State<QuizScreen>
   @override
   void initState() {
     super.initState();
+    _initTts();
     _generateQuestions();
     _progressController = AnimationController(
       vsync: this,
@@ -48,7 +52,31 @@ class _QuizScreenState extends State<QuizScreen>
   void dispose() {
     _progressController.dispose();
     _bounceController.dispose();
+    _tts.stop().catchError((_) {});
     super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _tts.setLanguage('ja-JP');
+      await _tts.setSpeechRate(0.5);
+      await _tts.setPitch(1.0);
+      _ttsAvailable = true;
+    } catch (_) {}
+  }
+
+  Future<void> _playAudio(String text) async {
+    if (!_ttsAvailable) return;
+    
+    // Check if it's a character with a reading
+    final char = text.trim();
+    final info = kanaCharacterInfo[char];
+    final toSpeak = info?.reading ?? char;
+
+    try {
+      await _tts.stop();
+      await _tts.speak(toSpeak);
+    } catch (_) {}
   }
 
   void _generateQuestions() {
@@ -229,7 +257,7 @@ class _QuizScreenState extends State<QuizScreen>
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 32),
+                              horizontal: 24, vertical: 24),
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerLowest,
                             borderRadius: BorderRadius.circular(28),
@@ -241,24 +269,41 @@ class _QuizScreenState extends State<QuizScreen>
                               ),
                             ],
                           ),
-                          child: Column(
+                          child: Stack(
                             children: [
-                              Text(
-                                question.prompt,
-                                textAlign: TextAlign.center,
-                                style: _promptTextStyle(context, question.type),
-                              ),
-                              if (question.promptSubtitle.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  question.promptSubtitle,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium
-                                      ?.copyWith(
-                                          color: scheme.onSurfaceVariant),
+                              Center(
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      question.prompt,
+                                      textAlign: TextAlign.center,
+                                      style: _promptTextStyle(context, question.type),
+                                    ),
+                                    if (question.promptSubtitle.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        question.promptSubtitle,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium
+                                            ?.copyWith(
+                                                color: scheme.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ],
+                              ),
+                              if (question.type != QuizQuestionType.englishToJapanese)
+                                Positioned(
+                                  top: -4,
+                                  right: -4,
+                                  child: IconButton(
+                                    onPressed: () => _playAudio(question.prompt),
+                                    icon: Icon(Icons.volume_up_rounded, 
+                                      color: scheme.primary.withValues(alpha: 0.6)),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -356,8 +401,6 @@ class _QuizScreenState extends State<QuizScreen>
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-
 class _ChoiceTile extends StatelessWidget {
   const _ChoiceTile({
     required this.choice,
@@ -437,8 +480,6 @@ class _ChoiceTile extends StatelessWidget {
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-
 class _FeedbackBanner extends StatelessWidget {
   const _FeedbackBanner({required this.isCorrect, required this.correctAnswer});
   final bool isCorrect;
@@ -492,8 +533,6 @@ class _FeedbackBanner extends StatelessWidget {
     );
   }
 }
-
-// ──────────────────────────────────────────────────────────────────────────────
 
 class _ScoreScreen extends StatelessWidget {
   const _ScoreScreen({
@@ -555,7 +594,6 @@ class _ScoreScreen extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 32),
-                  // Score circle
                   SizedBox(
                     width: 140,
                     height: 140,

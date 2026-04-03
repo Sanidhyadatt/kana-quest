@@ -43,7 +43,23 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
   Future<void> _initTts() async {
     try {
       await _tts.setLanguage('ja-JP');
-      await _tts.setSpeechRate(0.45);
+      await _tts.setSpeechRate(0.5);
+      await _tts.setPitch(1.0);
+      
+      // Try to find a high-quality human-like voice if available
+      final voices = await _tts.getVoices;
+      if (voices is List) {
+        for (final v in voices) {
+          final voiceMap = v as Map;
+          final name = voiceMap['name']?.toString().toLowerCase() ?? '';
+          final locale = voiceMap['locale']?.toString().toLowerCase() ?? '';
+          if (locale.contains('ja') && 
+              (name.contains('network') || name.contains('jpf') || name.contains('jpi'))) {
+            await _tts.setVoice(Map<String, String>.from(voiceMap));
+            break; 
+          }
+        }
+      }
       if (mounted) setState(() => _ttsReady = true);
     } catch (_) {}
   }
@@ -53,13 +69,17 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
     if (_ttsReady) {
       try {
         await _tts.stop();
+        await _tts.setLanguage('ja-JP');
+        await _tts.setSpeechRate(0.5);
+        await _tts.setPitch(1.0);
         await _tts.speak(text);
         return;
       } catch (_) {}
     }
     if (!kIsWeb && Platform.isLinux) {
       try {
-        await Process.run('spd-say', ['-l', 'ja', text]);
+        // -r 0 for normal speed, -p 0 for normal pitch
+        await Process.run('spd-say', ['-l', 'ja', '-r', '-10', text]);
       } catch (_) {}
     }
   }

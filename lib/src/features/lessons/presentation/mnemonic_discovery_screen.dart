@@ -72,13 +72,18 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
 
   Future<void> _playAudio() async {
     SystemSound.play(SystemSoundType.click);
-    // For Kanji, speak the hiragana reading; for Kana speak the character directly
-    final info = kanaCharacterInfo[widget.character];
-    final toSpeak = info?.reading ?? widget.character;
+    
+    // Robust lookup: trim character to handle accidental spaces
+    final char = widget.character.trim();
+    final info = kanaCharacterInfo[char];
+    final toSpeak = info?.reading ?? char;
 
     if (_ttsAvailable) {
       try {
         await _tts.stop();
+        await _tts.setLanguage('ja-JP');
+        await _tts.setSpeechRate(0.5);
+        await _tts.setPitch(1.0);
         await _tts.speak(toSpeak);
         return;
       } catch (_) {
@@ -87,8 +92,8 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
     }
     if (!kIsWeb && Platform.isLinux) {
       for (final cmd in [
-        ['spd-say', '-l', 'ja', toSpeak],
-        ['espeak', '-v', 'ja', toSpeak],
+        ['spd-say', '-l', 'ja', '-r', '-10', toSpeak],
+        ['espeak', '-v', 'ja', '-s', '140', toSpeak],
       ]) {
         try {
           final r = await Process.run(cmd[0], cmd.sublist(1));
@@ -567,7 +572,7 @@ class _StrokeOrderDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final strokeData = StrokePathRepository().getStrokeData(character);
+    final strokeData = StrokePathRepository().getStrokeData(character.trim());
 
     // ── Fallback: no vector data  ─────────────────────────────
     if (strokeData == null) {

@@ -10,6 +10,7 @@ import 'package:isar/isar.dart';
 import '../../../core/storage/isar_database.dart';
 import '../../lessons/data/models/kana_card.dart';
 import '../../lessons/data/seed/kana_seed_data.dart';
+import '../../lessons/data/seed/stroke_order_data.dart';
 import '../../lessons/presentation/mnemonic_discovery_screen.dart';
 import '../../lessons/domain/services/srs_service.dart';
 import '../../../core/services/streak_service.dart';
@@ -175,10 +176,18 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   Future<void> _playAudioHint(String character) async {
     SystemSound.play(SystemSoundType.click);
 
+    // Robust lookup for Kanji readings
+    final char = character.trim();
+    final info = kanaCharacterInfo[char];
+    final toSpeak = info?.reading ?? char;
+
     if (_ttsAvailable) {
       try {
         await _tts.stop();
-        await _tts.speak(character);
+        await _tts.setLanguage('ja-JP');
+        await _tts.setSpeechRate(0.5);
+        await _tts.setPitch(1.0);
+        await _tts.speak(toSpeak);
         return;
       } catch (_) {
         _ttsAvailable = false;
@@ -186,16 +195,11 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     }
 
     if (!kIsWeb && Platform.isLinux) {
-      final worked = await _speakWithLinuxTts(character);
-      if (worked) {
-        return;
-      }
+      final worked = await _speakWithLinuxTts(toSpeak);
+      if (worked) return;
     }
 
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Audio playback is unavailable on this device.')),
     );
@@ -210,14 +214,13 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
 
     for (final attempt in attempts) {
       try {
-        final result = await Process.run(attempt.command, attempt.args);
-        if (result.exitCode == 0) {
-          return true;
-        }
-      } catch (_) {
-      }
+        final result = await Process.run(
+          attempt.command,
+          [...attempt.args.sublist(0, attempt.args.length - 1), '-r', '-10', text],
+        );
+        if (result.exitCode == 0) return true;
+      } catch (_) {}
     }
-
     return false;
   }
 

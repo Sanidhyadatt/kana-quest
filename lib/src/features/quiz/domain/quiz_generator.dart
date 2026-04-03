@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../../features/vocabulary/data/vocabulary_repository.dart';
+import '../../../features/vocabulary/domain/vocabulary_word.dart';
 import 'quiz_question.dart';
 
 /// Generates a randomised quiz session.
@@ -37,16 +38,23 @@ class QuizGenerator {
     'ワ': 'wa', 'ヲ': 'wo', 'ン': 'n',
   };
 
-  /// Generates [count] random quiz questions mixing all three types.
+  static const _kanji = <String, String>{
+    '一': 'ichi', '二': 'ni', '三': 'san', '四': 'shi', '五': 'go',
+    '六': 'roku', '七': 'nana', '八': 'hachi', '九': 'kyuu', '十': 'juu',
+    '日': 'hi', '月': 'tsuki', '火': 'hi', '水': 'mizu', '木': 'ki',
+    '金': 'kane', '土': 'tsuchi',
+  };
+
+  /// Generates [count] random quiz questions mixing all types.
   List<QuizQuestion> generate({int count = 10}) {
     final questions = <QuizQuestion>[];
 
-    // Generate kana questions
-    final kanaQuestions = _generateKanaQuestions();
+    // Generate script questions (Hiragana/Katakana/Kanji)
+    final scriptQuestions = _generateScriptQuestions();
     // Generate vocabulary questions
     final vocabQuestions = _generateVocabQuestions();
 
-    final allPool = [...kanaQuestions, ...vocabQuestions];
+    final allPool = [...scriptQuestions, ...vocabQuestions];
     allPool.shuffle(_rng);
 
     for (int i = 0; i < count && i < allPool.length; i++) {
@@ -56,26 +64,37 @@ class QuizGenerator {
     return questions;
   }
 
-  List<QuizQuestion> _generateKanaQuestions() {
+  List<QuizQuestion> _generateScriptQuestions() {
     final questions = <QuizQuestion>[];
-    final allKana = <String, String>{..._hiragana, ..._katakana};
-    final entries = allKana.entries.toList()..shuffle(_rng);
+    final allChars = <String, String>{..._hiragana, ..._katakana, ..._kanji};
+    final entries = allChars.entries.toList()..shuffle(_rng);
 
-    for (final entry in entries.take(20)) {
+    for (final entry in entries.take(30)) {
       final char = entry.key;
       final correctRomaji = entry.value;
 
       // Generate 3 wrong choices
-      final wrongRomajis = allKana.values
+      final wrongRomajis = allChars.values
           .where((v) => v != correctRomaji)
+          .toSet() 
           .toList()
         ..shuffle(_rng);
       final choices = [correctRomaji, ...wrongRomajis.take(3)]..shuffle(_rng);
 
+      String subtitle = 'Script';
+      final code = char.codeUnitAt(0);
+      if (code < 0x30A0 && _hiragana.containsKey(char)) {
+        subtitle = 'Hiragana';
+      } else if (code >= 0x30A0 && code < 0x3100) {
+        subtitle = 'Katakana';
+      } else if (_kanji.containsKey(char)) {
+        subtitle = 'Kanji';
+      }
+
       questions.add(QuizQuestion(
         type: QuizQuestionType.kanaToRomaji,
         prompt: char,
-        promptSubtitle: char.codeUnitAt(0) < 0x30A0 ? 'Hiragana' : 'Katakana',
+        promptSubtitle: subtitle,
         correctAnswer: correctRomaji,
         choices: choices,
       ));
@@ -85,7 +104,7 @@ class QuizGenerator {
 
   List<QuizQuestion> _generateVocabQuestions() {
     final questions = <QuizQuestion>[];
-    final words = _vocabRepo.getAllWords()..shuffle(_rng);
+    final words = List<VocabularyWord>.from(_vocabRepo.getAllWords())..shuffle(_rng);
 
     for (final word in words.take(30)) {
       // Type A: show Japanese → choose English
