@@ -50,21 +50,23 @@ class HomeScreen extends ConsumerWidget {
                           isLeftAligned: index.isEven,
                           onTap: shrine.isLocked
                               ? null
-                              : () {
+                              : () async {
                                   if (shrine.row.row == 0) {
-                                    Navigator.of(context).pushNamed(
+                                    await Navigator.of(context).pushNamed(
                                       AppRoutes.baseCamp,
                                     );
+                                    ref.invalidate(worldMapProgressProvider);
                                     return;
                                   }
 
-                                  Navigator.of(context).push(
+                                  await Navigator.of(context).push(
                                     MaterialPageRoute<void>(
                                       builder: (context) => ReviewArenaScreen(
                                         initialRow: shrine.row.row,
                                       ),
                                     ),
                                   );
+                                  ref.invalidate(worldMapProgressProvider);
                                 },
                         );
                       },
@@ -76,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
                     top: 10,
                     child: _FloatingHeader(
                       progress: progress,
-                      onStartReview: () {
+                      onStartReview: () async {
                         if (progress.shrines.isEmpty) {
                           return;
                         }
@@ -86,13 +88,15 @@ class HomeScreen extends ConsumerWidget {
                           orElse: () => progress.shrines.first,
                         );
 
-                        Navigator.of(context).push(
+                        await Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (context) => ReviewArenaScreen(
                               initialRow: firstOpenShrine.row.row,
                             ),
                           ),
                         );
+
+                        ref.invalidate(worldMapProgressProvider);
                       },
                     ),
                   ),
