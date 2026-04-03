@@ -786,6 +786,15 @@ class _TracingCanvasState extends State<_TracingCanvas>
     setState(() => _currentStrokePoints.add(d.localPosition));
   }
 
+  void _onPanDown(DragDownDetails d) {
+    if (_completed) return;
+    widget.onDrawingStateChanged?.call(true);
+  }
+
+  void _onPanCancel() {
+    widget.onDrawingStateChanged?.call(false);
+  }
+
   void _onPanEnd(DragEndDetails _) {
     widget.onDrawingStateChanged?.call(false);
     if (_completed) return;
@@ -908,9 +917,17 @@ class _TracingCanvasState extends State<_TracingCanvas>
 
           // ── Drawing canvas ────────────────────────────────────
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onPanStart: _onPanStart,
             onPanUpdate: _onPanUpdate,
             onPanEnd: _onPanEnd,
+            onPanDown: _onPanDown,
+            onPanCancel: _onPanCancel,
+            // Absorbs vertical drag to prevent ListView scroll on Android
+            onVerticalDragStart: (_) {},
+            onVerticalDragUpdate: (_) {},
+            onVerticalDragEnd: (_) {},
+            onVerticalDragCancel: () {},
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final side = constraints.maxWidth;

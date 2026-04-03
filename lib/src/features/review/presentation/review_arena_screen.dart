@@ -574,7 +574,7 @@ class _RatingBar extends StatelessWidget {
             child: _RatingButton(
               label: "Don't Know",
               icon: Icons.close_rounded,
-              color: Colors.redAccent,
+              color: Theme.of(context).colorScheme.error,
               enabled: enabled,
               onTap: () => onRate(1),
             ),
@@ -584,7 +584,7 @@ class _RatingBar extends StatelessWidget {
             child: _RatingButton(
               label: "Know",
               icon: Icons.check_rounded,
-              color: Colors.greenAccent.shade700,
+              color: Theme.of(context).colorScheme.primary,
               enabled: enabled,
               onTap: () => onRate(3),
             ),
@@ -623,39 +623,38 @@ class _RatingButton extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           opacity: enabled ? 1.0 : 0.5,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 18),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: activeColor.withValues(alpha: 0.4),
-                width: 2,
+                color: activeColor.withValues(alpha: 0.3),
+                width: 1.5,
               ),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  activeColor.withValues(alpha: 0.12),
-                  activeColor.withValues(alpha: 0.04),
+                  activeColor.withValues(alpha: 0.1),
+                  activeColor.withValues(alpha: 0.05),
                 ],
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: activeColor, size: 30),
-                const SizedBox(height: 6),
+                Icon(icon, color: activeColor, size: 20),
+                const SizedBox(width: 8),
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: activeColor,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
                       ),
                 ),
               ],
             ),
           ),
-        )
+        ),
       ),
     );
   }

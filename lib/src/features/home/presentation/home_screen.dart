@@ -102,15 +102,7 @@ class _LearnTab extends ConsumerWidget {
             return Stack(
               children: [
                 const _WorldBackdrop(),
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _ZigzagPathPainter(
-                      nodeCount: progress.shrines.length,
-                      primaryColor: Theme.of(context).colorScheme.primary,
-                      secondaryColor: Theme.of(context).colorScheme.tertiary,
-                    ),
-                  ),
-                ),
+                // Note: Zigzag path removed as requested
                 Positioned.fill(
                   child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 180, 16, 80),
@@ -186,70 +178,6 @@ class _LearnTab extends ConsumerWidget {
   }
 }
 
-class _ZigzagPathPainter extends CustomPainter {
-  _ZigzagPathPainter({
-    required this.nodeCount,
-    required this.primaryColor,
-    required this.secondaryColor,
-  });
-  final int nodeCount;
-  final Color primaryColor;
-  final Color secondaryColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (nodeCount < 2) return;
-
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    const yOffset = 180.0 + 90.0;
-    const itemHeight = 220.0; // matched with Shrine vertical padding
-
-    // ── 1. Create the path ──────────────────────────────
-    final path = Path();
-    for (var i = 0; i < nodeCount - 1; i++) {
-        final startX = i.isEven ? size.width * 0.20 : size.width * 0.80;
-        final endX = (i + 1).isEven ? size.width * 0.20 : size.width * 0.80;
-        final startY = yOffset + (i * itemHeight);
-        final endY = yOffset + ((i + 1) * itemHeight);
-        
-        if (i == 0) path.moveTo(startX, startY);
-        path.quadraticBezierTo(size.width / 2, (startY + endY) / 2, endX, endY);
-    }
-
-    // ── 2. Draw Glow ─────────────────────────────────────
-    canvas.drawPath(
-      path,
-      paint
-        ..color = primaryColor.withValues(alpha: 0.2)
-        ..strokeWidth = 14
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
-    );
-
-    // ── 3. Draw Main Line ────────────────────────────────
-    canvas.drawPath(
-      path,
-      paint
-        ..color = primaryColor.withValues(alpha: 0.4)
-        ..strokeWidth = 6
-        ..maskFilter = null,
-    );
-
-    // ── 4. Draw Secondary Accents (Dashed) ───────────────
-    canvas.drawPath(
-      path,
-      paint
-        ..color = secondaryColor.withValues(alpha: 0.3)
-        ..strokeWidth = 2,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 class _AnimatedShrine extends StatefulWidget {
   const _AnimatedShrine({required this.index, required this.child});
@@ -510,9 +438,6 @@ class Shrine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: InkWell(
@@ -522,33 +447,7 @@ class Shrine extends StatelessWidget {
           alignment: Alignment.center,
           clipBehavior: Clip.none,
           children: [
-            // Connector line (Glowing Energy)
-            Positioned(
-              left: isLeftAligned ? screenWidth * 0.20 : null,
-              right: !isLeftAligned ? screenWidth * 0.20 : null,
-              child: Container(
-                width: screenWidth * 0.4,
-                height: 4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      progress.isLocked ? scheme.outlineVariant : scheme.primary.withValues(alpha: 0.8),
-                      progress.isLocked ? scheme.outlineVariant.withValues(alpha: 0) : scheme.primary.withValues(alpha: 0),
-                    ],
-                    begin: isLeftAligned ? Alignment.centerRight : Alignment.centerLeft,
-                    end: isLeftAligned ? Alignment.centerLeft : Alignment.centerRight,
-                  ),
-                  boxShadow: [
-                    if (!progress.isLocked)
-                     BoxShadow(
-                       color: scheme.primary.withValues(alpha: 0.3),
-                       blurRadius: 10,
-                       spreadRadius: 2,
-                     ),
-                  ],
-                ),
-              ),
-            ),
+            // Connector line (Removed as requested)
 
             // The main card and node row
             Padding(
