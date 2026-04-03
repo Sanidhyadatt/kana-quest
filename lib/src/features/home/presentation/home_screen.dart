@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -105,48 +106,49 @@ class _LearnTab extends ConsumerWidget {
                   child: CustomPaint(
                     painter: _ZigzagPathPainter(
                       nodeCount: progress.shrines.length,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.15),
+                      primaryColor: Theme.of(context).colorScheme.primary,
+                      secondaryColor: Theme.of(context).colorScheme.tertiary,
                     ),
                   ),
                 ),
                 Positioned.fill(
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 180, 20, 48),
+                    padding: const EdgeInsets.fromLTRB(16, 180, 16, 80),
                     physics: const BouncingScrollPhysics(),
                     itemCount: progress.shrines.length,
                     itemBuilder: (context, index) {
                       final shrine = progress.shrines[index];
-                      return Shrine(
-                        progress: shrine,
-                        isLeftAligned: index.isEven,
-                        scriptType: scriptType,
-                        onTap: shrine.isLocked
-                            ? null
-                            : () async {
-                                if (shrine.row.row == 0) {
+                      return _AnimatedShrine(
+                        index: index,
+                        child: Shrine(
+                          progress: shrine,
+                          isLeftAligned: index.isEven,
+                          scriptType: scriptType,
+                          onTap: shrine.isLocked
+                              ? null
+                              : () async {
+                                  if (shrine.row.row == 0) {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (context) => BaseCampScreen(
+                                          scriptType: scriptType,
+                                        ),
+                                      ),
+                                    );
+                                    ref.invalidate(worldMapProgressProvider);
+                                    return;
+                                  }
                                   await Navigator.of(context).push(
                                     MaterialPageRoute<void>(
-                                      builder: (context) => BaseCampScreen(
+                                      builder: (context) => ReviewArenaScreen(
+                                        initialRow: shrine.row.row,
                                         scriptType: scriptType,
                                       ),
                                     ),
                                   );
                                   ref.invalidate(worldMapProgressProvider);
-                                  return;
-                                }
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (context) => ReviewArenaScreen(
-                                      initialRow: shrine.row.row,
-                                      scriptType: scriptType,
-                                    ),
-                                  ),
-                                );
-                                ref.invalidate(worldMapProgressProvider);
-                              },
+                                },
+                        ),
                       );
                     },
                   ),
@@ -185,47 +187,121 @@ class _LearnTab extends ConsumerWidget {
 }
 
 class _ZigzagPathPainter extends CustomPainter {
-  _ZigzagPathPainter({required this.nodeCount, required this.color});
+  _ZigzagPathPainter({
+    required this.nodeCount,
+    required this.primaryColor,
+    required this.secondaryColor,
+  });
   final int nodeCount;
-  final Color color;
+  final Color primaryColor;
+  final Color secondaryColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (nodeCount < 2) return;
+
     final paint = Paint()
-      ..color = color
-      ..strokeWidth = 3
       ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
-    const dashSize = 6.0;
-    const gapSize = 8.0;
-    const yOffset = 180.0 + 80.0;
-    const itemHeight = 200.0;
+    const yOffset = 180.0 + 90.0;
+    const itemHeight = 220.0; // matched with Shrine vertical padding
 
+    // ── 1. Create the path ──────────────────────────────
     final path = Path();
     for (var i = 0; i < nodeCount - 1; i++) {
-      final startX = i.isEven ? size.width * 0.25 : size.width * 0.75;
-      final endX = (i + 1).isEven ? size.width * 0.25 : size.width * 0.75;
-      final startY = yOffset + (i * itemHeight);
-      final endY = yOffset + ((i + 1) * itemHeight);
-      path.moveTo(startX, startY);
-      path.quadraticBezierTo(size.width / 2, (startY + endY) / 2, endX, endY);
+        final startX = i.isEven ? size.width * 0.20 : size.width * 0.80;
+        final endX = (i + 1).isEven ? size.width * 0.20 : size.width * 0.80;
+        final startY = yOffset + (i * itemHeight);
+        final endY = yOffset + ((i + 1) * itemHeight);
+        
+        if (i == 0) path.moveTo(startX, startY);
+        path.quadraticBezierTo(size.width / 2, (startY + endY) / 2, endX, endY);
     }
 
-    final metrics = path.computeMetrics();
-    if (metrics.isEmpty) return;
-    final pathMetric = metrics.first;
-    var distance = 0.0;
-    while (distance < pathMetric.length) {
-      canvas.drawPath(
-          pathMetric.extractPath(distance, distance + dashSize), paint);
-      distance += dashSize + gapSize;
-    }
+    // ── 2. Draw Glow ─────────────────────────────────────
+    canvas.drawPath(
+      path,
+      paint
+        ..color = primaryColor.withValues(alpha: 0.2)
+        ..strokeWidth = 14
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+    );
+
+    // ── 3. Draw Main Line ────────────────────────────────
+    canvas.drawPath(
+      path,
+      paint
+        ..color = primaryColor.withValues(alpha: 0.4)
+        ..strokeWidth = 6
+        ..maskFilter = null,
+    );
+
+    // ── 4. Draw Secondary Accents (Dashed) ───────────────
+    canvas.drawPath(
+      path,
+      paint
+        ..color = secondaryColor.withValues(alpha: 0.3)
+        ..strokeWidth = 2,
+    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _AnimatedShrine extends StatefulWidget {
+  const _AnimatedShrine({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  State<_AnimatedShrine> createState() => _AnimatedShrineState();
+}
+
+class _AnimatedShrineState extends State<_AnimatedShrine>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 600),
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _ctrl,
+    curve: Curves.easeOut,
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.2),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(
+    parent: _ctrl,
+    curve: Curves.elasticOut,
+  ));
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: widget.index * 100), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
+      ),
+    );
+  }
 }
 
 class _WorldBackdrop extends StatelessWidget {
@@ -435,38 +511,76 @@ class Shrine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final cardColor = progress.isLocked
-        ? scheme.surfaceContainerHigh
-        : progress.isMastered
-            ? scheme.primaryContainer.withValues(alpha: 0.66)
-            : scheme.surfaceContainerLow;
-    final textColor =
-        progress.isLocked ? scheme.onSurfaceVariant : scheme.onSurface;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(32),
         onTap: onTap,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
           children: [
-            Expanded(
-              child: Align(
-                alignment: isLeftAligned
-                    ? Alignment.centerLeft
-                    : Alignment.centerRight,
-                child: _ShrineCard(
-                  progress: progress,
-                  cardColor: cardColor,
-                  textColor: textColor,
+            // Connector line (Glowing Energy)
+            Positioned(
+              left: isLeftAligned ? screenWidth * 0.20 : null,
+              right: !isLeftAligned ? screenWidth * 0.20 : null,
+              child: Container(
+                width: screenWidth * 0.4,
+                height: 4,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      progress.isLocked ? scheme.outlineVariant : scheme.primary.withValues(alpha: 0.8),
+                      progress.isLocked ? scheme.outlineVariant.withValues(alpha: 0) : scheme.primary.withValues(alpha: 0),
+                    ],
+                    begin: isLeftAligned ? Alignment.centerRight : Alignment.centerLeft,
+                    end: isLeftAligned ? Alignment.centerLeft : Alignment.centerRight,
+                  ),
+                  boxShadow: [
+                    if (!progress.isLocked)
+                     BoxShadow(
+                       color: scheme.primary.withValues(alpha: 0.3),
+                       blurRadius: 10,
+                       spreadRadius: 2,
+                     ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 16),
-            _PathNode(progress: progress),
-            const SizedBox(width: 16),
-            const Expanded(child: SizedBox()),
+
+            // The main card and node row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                   if (isLeftAligned) ...[
+                      Expanded(
+                        flex: 5,
+                        child: _ShrineCard(
+                          progress: progress,
+                          isLocked: progress.isLocked,
+                        ),
+                      ),
+                      const Spacer(flex: 1),
+                      _PathNode(progress: progress),
+                      const Spacer(flex: 1),
+                   ] else ...[
+                      const Spacer(flex: 1),
+                      _PathNode(progress: progress),
+                      const Spacer(flex: 1),
+                      Expanded(
+                        flex: 5,
+                        child: _ShrineCard(
+                          progress: progress,
+                          isLocked: progress.isLocked,
+                        ),
+                      ),
+                   ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -511,59 +625,122 @@ class _PathNode extends StatelessWidget {
 class _ShrineCard extends StatelessWidget {
   const _ShrineCard({
     required this.progress,
-    required this.cardColor,
-    required this.textColor,
+    required this.isLocked,
   });
 
   final ShrineProgress progress;
-  final Color cardColor;
-  final Color textColor;
+  final bool isLocked;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 240),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${progress.row.label} Row',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: textColor,
-                      fontWeight: FontWeight.w800,
-                    ),
+    final scheme = Theme.of(context).colorScheme;
+    final mastered = progress.masteryFraction;
+    
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: (isLocked ? Colors.black : scheme.primary).withValues(alpha: 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: (isLocked
+                      ? scheme.surfaceContainerHigh
+                      : progress.isMastered
+                          ? scheme.primaryContainer.withValues(alpha: 0.7)
+                          : scheme.surface.withValues(alpha: 0.85))
+                  .withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: isLocked
+                    ? scheme.outlineVariant.withValues(alpha: 0.5)
+                    : scheme.primary.withValues(alpha: 0.2),
+                width: 1.5,
               ),
-              Text(
-                progress.row.kana,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: textColor,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
+            ),
+            child: Opacity(
+              opacity: isLocked ? 0.6 : 1.0,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${progress.row.label} Row',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: isLocked ? scheme.onSurfaceVariant : scheme.primary,
+                            ),
+                      ),
+                      if (isLocked)
+                        Icon(Icons.lock_rounded, size: 16, color: scheme.onSurfaceVariant)
+                      else if (progress.isMastered)
+                        Icon(Icons.stars_rounded, size: 20, color: scheme.primary),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    progress.row.kana,
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: scheme.onSurface,
+                          letterSpacing: 4,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Progress bar
+                  if (!isLocked) ...[
+                    Container(
+                      height: 6,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: mastered,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [scheme.primary, scheme.tertiary],
+                            ),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
                     ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Pronunciation: ${progress.row.label}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: textColor.withValues(alpha: 0.6),
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 4),
+                    Text(
+                      '${(mastered * 100).toInt()}% Mastered',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                progress.row.focus,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: textColor.withValues(alpha: 0.78),
+                  ] else
+                    Text(
+                      'Complete previous lessons to unlock',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                          ),
                     ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

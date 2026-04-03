@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../lessons/data/seed/stroke_order_data.dart';
+import '../../../app/app.dart';
 import '../domain/quiz_generator.dart';
 import '../domain/quiz_question.dart';
 
@@ -17,13 +17,13 @@ class _QuizScreenState extends State<QuizScreen>
     with TickerProviderStateMixin {
   static const _totalQuestions = 10;
 
-  final FlutterTts _tts = FlutterTts();
-  bool _ttsAvailable = false;
   List<QuizQuestion> _questions = [];
   int _currentIndex = 0;
   String? _selectedChoice;
   bool _answered = false;
   int _correctCount = 0;
+  bool _questionReady = false;
+  bool _sessionRecorded = false;
 
   late AnimationController _progressController;
   late AnimationController _bounceController;
@@ -32,8 +32,6 @@ class _QuizScreenState extends State<QuizScreen>
   @override
   void initState() {
     super.initState();
-    _initTts();
-    _generateQuestions();
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 450),
@@ -46,42 +44,18 @@ class _QuizScreenState extends State<QuizScreen>
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.1), weight: 1),
       TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _bounceController, curve: Curves.easeOut));
+    _generateQuestions();
   }
 
   @override
   void dispose() {
     _progressController.dispose();
     _bounceController.dispose();
-    _tts.stop().catchError((_) {});
     super.dispose();
   }
 
-  Future<void> _initTts() async {
-    try {
-      await _tts.setLanguage('ja-JP');
-      await _tts.setSpeechRate(0.5);
-      await _tts.setPitch(1.0);
-      _ttsAvailable = true;
-    } catch (_) {}
-  }
-
-  Future<void> _playAudio(String text) async {
-    if (!_ttsAvailable) return;
-    
-    // Check if it's a character with a reading
-    final char = text.trim();
-    final info = kanaCharacterInfo[char];
-    final toSpeak = info?.reading ?? char;
-
-    try {
-      await _tts.stop();
-      await _tts.speak(toSpeak);
-    } catch (_) {}
-  }
 
   Future<void> _generateQuestions() async {
-    // Artificial small delay to show the theme's loading state
-    await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
     final newQuestions = QuizGenerator().generate(count: _totalQuestions);
@@ -92,6 +66,8 @@ class _QuizScreenState extends State<QuizScreen>
       _selectedChoice = null;
       _answered = false;
       _correctCount = 0;
+      _questionReady = false;
+      _sessionRecorded = false;
     });
     if (newQuestions.isNotEmpty) {
       _progressController.animateTo(1 / _totalQuestions);
@@ -99,13 +75,15 @@ class _QuizScreenState extends State<QuizScreen>
   }
 
   void _onChoiceTap(String choice) {
-    if (_answered) return;
+    if (_answered || !_questionReady) return;
     final isCorrect = choice == _questions[_currentIndex].correctAnswer;
 
     setState(() {
       _selectedChoice = choice;
       _answered = true;
-      if (isCorrect) _correctCount++;
+      if (isCorrect) {
+        _correctCount++;
+      }
     });
 
     if (isCorrect) {
@@ -116,8 +94,9 @@ class _QuizScreenState extends State<QuizScreen>
     }
   }
 
-  void _nextQuestion() {
+  Future<void> _nextQuestion() async {
     if (_currentIndex + 1 >= _questions.length) {
+      await _recordQuizSession();
       // Go to results
       setState(() {
         _currentIndex = _questions.length; // signal "done"
@@ -129,9 +108,35 @@ class _QuizScreenState extends State<QuizScreen>
       _currentIndex++;
       _selectedChoice = null;
       _answered = false;
+      // We keep _questionReady true so it doesn't ask again!
     });
     _progressController.animateTo((_currentIndex + 1) / _totalQuestions);
   }
+
+  Future<void> _recordQuizSession() async {
+    if (_sessionRecorded) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final attempts = prefs.getInt(AppPrefsKeys.quizAttempts) ?? 0;
+    final correctAnswers = prefs.getInt(AppPrefsKeys.quizCorrectAnswers) ?? 0;
+    final questionsAnswered =
+        prefs.getInt(AppPrefsKeys.quizQuestionsAnswered) ?? 0;
+
+    await prefs.setInt(AppPrefsKeys.quizAttempts, attempts + 1);
+    await prefs.setInt(
+      AppPrefsKeys.quizCorrectAnswers,
+      correctAnswers + _correctCount,
+    );
+    await prefs.setInt(
+      AppPrefsKeys.quizQuestionsAnswered,
+      questionsAnswered + _questions.length,
+    );
+
+    _sessionRecorded = true;
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -194,19 +199,6 @@ class _QuizScreenState extends State<QuizScreen>
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(
                   children: [
-                    // Heart/lives placeholder
-                    Row(
-                      children: List.generate(
-                        3,
-                        (i) => Icon(
-                          Icons.favorite_rounded,
-                          color: i < (3 - ((_currentIndex - _correctCount).clamp(0, 3)))
-                              ? Colors.red
-                              : scheme.surfaceContainerHighest,
-                          size: 22,
-                        ),
-                      ),
-                    ),
                     const Spacer(),
                     // Progress indicator
                     Text(
@@ -323,50 +315,73 @@ class _QuizScreenState extends State<QuizScreen>
                                   ],
                                 ),
                               ),
-                              if (question.type != QuizQuestionType.englishToJapanese)
-                                Positioned(
-                                  top: -4,
-                                  right: -4,
-                                  child: IconButton(
-                                    onPressed: () => _playAudio(question.prompt),
-                                    icon: Icon(Icons.volume_up_rounded, 
-                                      color: scheme.primary.withValues(alpha: 0.6)),
-                                  ),
-                                ),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 28),
 
-                      // Choices grid
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 2.4,
+                      if (!_questionReady)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerLowest,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Ready for this one?',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _questionReady = true;
+                                    });
+                                  },
+                                  child: const Text('I\'m Ready'),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        itemCount: question.choices.length,
-                        itemBuilder: (context, i) {
-                          final choice = question.choices[i];
-                          return _ChoiceTile(
-                            choice: choice,
-                            selected: _selectedChoice == choice,
-                            answered: _answered,
-                            isCorrect: choice == question.correctAnswer,
-                            onTap: () => _onChoiceTap(choice),
-                          );
-                        },
-                      ),
+                      if (_questionReady)
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 2.4,
+                          ),
+                          itemCount: question.choices.length,
+                          itemBuilder: (context, i) {
+                            final choice = question.choices[i];
+                            return _ChoiceTile(
+                              choice: choice,
+                              selected: _selectedChoice == choice,
+                              answered: _answered,
+                              isCorrect: choice == question.correctAnswer,
+                              onTap: () => _onChoiceTap(choice),
+                            );
+                          },
+                        ),
 
                       const Spacer(),
 
                       // Continue / feedback
-                      if (_answered) ...[
+                      if (_questionReady && _answered) ...[
                         _FeedbackBanner(
                           isCorrect: _selectedChoice == question.correctAnswer,
                           correctAnswer: question.correctAnswer,

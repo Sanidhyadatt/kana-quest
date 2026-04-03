@@ -18,6 +18,11 @@ class DojoRepository {
     final prefs = await SharedPreferences.getInstance();
     final userName = prefs.getString(AppPrefsKeys.userName) ?? 'Scholar';
     final dailyGoal = prefs.getInt(AppPrefsKeys.dailyGoal) ?? 10;
+    final quizAttempts = prefs.getInt(AppPrefsKeys.quizAttempts) ?? 0;
+    final quizCorrectAnswers =
+      prefs.getInt(AppPrefsKeys.quizCorrectAnswers) ?? 0;
+    final quizQuestionsAnswered =
+      prefs.getInt(AppPrefsKeys.quizQuestionsAnswered) ?? 0;
 
     const streakSvc = StreakService();
     final streak = await streakSvc.getStreak();
@@ -79,6 +84,9 @@ class DojoRepository {
         totalKana: cards.length,
       ),
       totalCardsReviewed: totalReviewed,
+      quizAttempts: quizAttempts,
+      quizCorrectAnswers: quizCorrectAnswers,
+      quizQuestionsAnswered: quizQuestionsAnswered,
     );
   }
 }

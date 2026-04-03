@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_mode_controller.dart';
 import '../features/base_camp/presentation/base_camp_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
@@ -26,6 +27,10 @@ class AppPrefsKeys {
   static const dailyGoal = 'daily_goal';
   static const startingPath = 'starting_path';
   static const onboardingComplete = 'onboarding_complete';
+  static const themeMode = 'theme_mode';
+  static const quizAttempts = 'quiz_attempts';
+  static const quizCorrectAnswers = 'quiz_correct_answers';
+  static const quizQuestionsAnswered = 'quiz_questions_answered';
 }
 
 class KanaQuestApp extends StatelessWidget {
@@ -34,19 +39,32 @@ class KanaQuestApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Kana Quest',
-        theme: AppTheme.light(),
-        initialRoute: AppRoutes.bootstrap,
-        routes: {
-          AppRoutes.bootstrap: (context) => const _AppBootstrapScreen(),
-          AppRoutes.home: (context) => const HomeScreen(),
-          AppRoutes.baseCamp: (context) => const BaseCampScreen(),
-          AppRoutes.reviewArena: (context) => const ReviewArenaScreen(),
-          AppRoutes.onboarding: (context) => const OnboardingScreen(),
-        },
-      ),
+      child: const _AppView(),
+    );
+  }
+}
+
+class _AppView extends ConsumerWidget {
+  const _AppView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Kana Quest',
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: themeMode,
+      initialRoute: AppRoutes.bootstrap,
+      routes: {
+        AppRoutes.bootstrap: (context) => const _AppBootstrapScreen(),
+        AppRoutes.home: (context) => const HomeScreen(),
+        AppRoutes.baseCamp: (context) => const BaseCampScreen(),
+        AppRoutes.reviewArena: (context) => const ReviewArenaScreen(),
+        AppRoutes.onboarding: (context) => const OnboardingScreen(),
+      },
     );
   }
 }

@@ -148,7 +148,13 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
       return;
     }
 
-    final card = _dueCards.first;
+    final card = _dueCards.removeAt(0);
+
+    // If "Don't Know" (Rating 1), put it at the end of the queue for re-practice
+    if (rating == 1) {
+      _dueCards.add(card);
+    }
+
     _srsService.applyReview(card: card, rating: rating);
 
     await _isar!.writeTxn(() async {
@@ -160,10 +166,11 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     }
 
     setState(() {
-      _dueCards = List<KanaCard>.from(_dueCards)..removeAt(0);
-      _reviewedCount += 1;
       _isBackVisible = false;
       _comboStreak = rating >= 3 ? _comboStreak + 1 : 0;
+      if (rating >= 3) {
+        _reviewedCount += 1;
+      }
     });
 
     await const StreakService().recordReview();
@@ -559,62 +566,97 @@ class _RatingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
-      children: [
-        _RateButton(
-          label: 'Again',
-          rating: 1,
-          enabled: enabled,
-          onRate: onRate,
-        ),
-        _RateButton(
-          label: 'Hard',
-          rating: 2,
-          enabled: enabled,
-          onRate: onRate,
-        ),
-        _RateButton(
-          label: 'Good',
-          rating: 3,
-          enabled: enabled,
-          onRate: onRate,
-        ),
-        _RateButton(
-          label: 'Easy',
-          rating: 4,
-          enabled: enabled,
-          onRate: onRate,
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: _RatingButton(
+              label: "Don't Know",
+              icon: Icons.close_rounded,
+              color: Colors.redAccent,
+              enabled: enabled,
+              onTap: () => onRate(1),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _RatingButton(
+              label: "Know",
+              icon: Icons.check_rounded,
+              color: Colors.greenAccent.shade700,
+              enabled: enabled,
+              onTap: () => onRate(3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _RateButton extends StatelessWidget {
-  const _RateButton({
+class _RatingButton extends StatelessWidget {
+  const _RatingButton({
     required this.label,
-    required this.rating,
+    required this.icon,
+    required this.color,
     required this.enabled,
-    required this.onRate,
+    required this.onTap,
   });
 
   final String label;
-  final int rating;
+  final IconData icon;
+  final Color color;
   final bool enabled;
-  final Future<void> Function(int rating) onRate;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        minimumSize: const Size(64, 36),
+    final activeColor = enabled ? color : color.withValues(alpha: 0.3);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(24),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: enabled ? 1.0 : 0.5,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: activeColor.withValues(alpha: 0.4),
+                width: 2,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  activeColor.withValues(alpha: 0.12),
+                  activeColor.withValues(alpha: 0.04),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: activeColor, size: 30),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: activeColor,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        )
       ),
-      onPressed: enabled ? () => onRate(rating) : null,
-      child: Text(label),
     );
   }
 }

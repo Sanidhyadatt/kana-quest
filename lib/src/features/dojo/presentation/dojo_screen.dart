@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../domain/achievement.dart';
+import '../../../core/theme/theme_mode_controller.dart';
 import '../domain/dojo_stats.dart';
 import 'dojo_providers.dart';
 
@@ -54,7 +54,9 @@ class _DojoBody extends StatelessWidget {
         const SizedBox(height: 18),
         _ProgressOverviewSection(stats: stats),
         const SizedBox(height: 18),
-        _AchievementsSection(achievements: stats.achievements),
+        _QuizProgressSection(stats: stats),
+        const SizedBox(height: 18),
+        const _AppearanceSection(),
       ],
     );
   }
@@ -388,6 +390,28 @@ class _ProgressOverviewSection extends StatelessWidget {
             learning: stats.kanjiLearning,
             color: scheme.tertiary,
           ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStatCard(
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: scheme.primary,
+                  value: '${stats.totalMastered}',
+                  label: 'Total Mastered',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MiniStatCard(
+                  icon: Icons.school_rounded,
+                  iconColor: scheme.secondary,
+                  value: '${stats.totalLearning}',
+                  label: 'Total Learning',
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -427,7 +451,7 @@ class _ProgressBar extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '$mastered Mastered',
+              '$mastered Mastered · $learning Learning',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -459,58 +483,116 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-class _AchievementsSection extends StatelessWidget {
-  const _AchievementsSection({required this.achievements});
-  final List<Achievement> achievements;
+class _QuizProgressSection extends StatelessWidget {
+  const _QuizProgressSection({required this.stats});
+  final DojoStats stats;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final accuracyPercent = (stats.quizAccuracy * 100).round();
+
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SectionTitle(
-            icon: Icons.military_tech_rounded,
-            label: 'Mastery Badges',
+            icon: Icons.quiz_rounded,
+            label: 'Quiz Progress',
           ),
           const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.8,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: achievements.length,
-            itemBuilder: (context, index) {
-              final a = achievements[index];
-              final scheme = Theme.of(context).colorScheme;
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: a.isUnlocked ? scheme.primaryContainer.withValues(alpha: 0.4) : scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(16),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStatCard(
+                  icon: Icons.play_circle_fill_rounded,
+                  iconColor: scheme.primary,
+                  value: '${stats.quizAttempts}',
+                  label: 'Quiz Attempted',
                 ),
-                child: Row(
-                  children: [
-                    Text(a.emoji, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        a.title,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: a.isUnlocked ? scheme.onSurface : scheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MiniStatCard(
+                  icon: Icons.check_circle_rounded,
+                  iconColor: const Color(0xFF4CAF50),
+                  value: '${stats.quizCorrectAnswers}',
+                  label: 'Correct Answers',
                 ),
-              );
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStatCard(
+                  icon: Icons.help_rounded,
+                  iconColor: scheme.secondary,
+                  value: '${stats.quizQuestionsAnswered}',
+                  label: 'Questions Answered',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MiniStatCard(
+                  icon: Icons.insights_rounded,
+                  iconColor: scheme.tertiary,
+                  value: '$accuracyPercent%',
+                  label: 'Accuracy',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            icon: Icons.palette_rounded,
+            label: 'Appearance',
+          ),
+          const SizedBox(height: 16),
+          SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.system,
+                icon: Icon(Icons.brightness_auto_rounded),
+                label: Text('System'),
+              ),
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.light,
+                icon: Icon(Icons.light_mode_rounded),
+                label: Text('Light'),
+              ),
+              ButtonSegment<ThemeMode>(
+                value: ThemeMode.dark,
+                icon: Icon(Icons.dark_mode_rounded),
+                label: Text('Dark'),
+              ),
+            ],
+            selected: {themeMode},
+            onSelectionChanged: (selection) {
+              if (selection.isEmpty) {
+                return;
+              }
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(selection.first);
             },
           ),
         ],
@@ -518,6 +600,7 @@ class _AchievementsSection extends StatelessWidget {
     );
   }
 }
+
 
 class _Card extends StatelessWidget {
   const _Card({required this.child});

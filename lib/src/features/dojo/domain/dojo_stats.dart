@@ -20,6 +20,9 @@ class DojoStats {
     required this.reviewDates,
     required this.achievements,
     required this.totalCardsReviewed,
+    required this.quizAttempts,
+    required this.quizCorrectAnswers,
+    required this.quizQuestionsAnswered,
   });
 
   final String userName;
@@ -41,6 +44,9 @@ class DojoStats {
   final Set<String> reviewDates;
   final List<Achievement> achievements;
   final int totalCardsReviewed;
+  final int quizAttempts;
+  final int quizCorrectAnswers;
+  final int quizQuestionsAnswered;
 
   double get weeklyGoalProgress {
     if (weeklyGoalDays <= 0) return 0;
@@ -50,4 +56,17 @@ class DojoStats {
   // Backwards compatibility for now or deprecated
   int get kanaMastered => hiraganaMastered;
   int get kanaLearning => hiraganaLearning;
+
+  int get totalMastered =>
+      hiraganaMastered + katakanaMastered + kanjiMastered;
+
+  int get totalLearning =>
+      hiraganaLearning + katakanaLearning + kanjiLearning;
+
+  double get quizAccuracy {
+    if (quizQuestionsAnswered <= 0) {
+      return 0;
+    }
+    return (quizCorrectAnswers / quizQuestionsAnswered).clamp(0.0, 1.0);
+  }
 }
