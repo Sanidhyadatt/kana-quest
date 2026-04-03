@@ -1,6 +1,8 @@
 import 'package:isar/isar.dart';
 
 import '../models/kana_card.dart';
+import '../repositories/stroke_path_repository.dart';
+import 'stroke_order_data.dart';
 import 'kana_seed_data.dart';
 
 class KanaSeedService {
@@ -8,6 +10,11 @@ class KanaSeedService {
 
   static Future<void> ensureSeeded(Isar isar) async {
     final existingCards = await isar.kanaCards.where().findAll();
+    final existingByKey = {
+      for (final card in existingCards)
+        '${card.character}|${card.script}': card,
+    };
+    final strokeRepository = StrokePathRepository();
 
     final allSeeds = [
       ...seedKanaCards,
@@ -15,31 +22,40 @@ class KanaSeedService {
       ...seedKanjiCards,
     ];
 
-    final existingKeys = existingCards.map((c) => '${c.character}|${c.script}').toSet();
-    final toInsert = <KanaCard>[];
+    final toUpsert = <KanaCard>[];
 
     for (final seed in allSeeds) {
       final key = '${seed.character}|${seed.script}';
-      if (!existingKeys.contains(key)) {
-        final card = KanaCard()
-          ..character = seed.character
-          ..script = seed.script
-          ..romaji = seed.romaji
-          ..mnemonic = seed.mnemonic
-          ..row = seed.row
-          ..relatedWords = seed.relatedWords
-          ..easeFactor = 2.5
-          ..interval = 0
-          ..repetitions = 0
-          ..nextReviewDate = DateTime.fromMillisecondsSinceEpoch(0);
-        
-        toInsert.add(card);
-      }
+      final strokeData = strokeRepository.getStrokeData(seed.character);
+      final strokePaths = strokeData?.paths ?? const <String>[];
+      final strokeCount = strokePaths.isNotEmpty
+          ? strokePaths.length
+          : (kanaCharacterInfo[seed.character]?.strokeCount ?? 0);
+
+      final card =
+          existingByKey[key] ??
+          (KanaCard()
+            ..easeFactor = 2.5
+            ..interval = 0
+            ..repetitions = 0
+            ..nextReviewDate = DateTime.fromMillisecondsSinceEpoch(0));
+
+      card
+        ..character = seed.character
+        ..script = seed.script
+        ..romaji = seed.romaji
+        ..mnemonic = seed.mnemonic
+        ..row = seed.row
+        ..relatedWords = seed.relatedWords
+        ..strokeCount = strokeCount
+        ..strokePaths = List<String>.from(strokePaths);
+
+      toUpsert.add(card);
     }
 
-    if (toInsert.isNotEmpty) {
+    if (toUpsert.isNotEmpty) {
       await isar.writeTxn(() async {
-        await isar.kanaCards.putAll(toInsert);
+        await isar.kanaCards.putAll(toUpsert);
       });
     }
   }

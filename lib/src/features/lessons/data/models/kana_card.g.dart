@@ -66,6 +66,16 @@ const KanaCardSchema = CollectionSchema(
       id: 9,
       name: r'script',
       type: IsarType.long,
+    ),
+    r'strokeCount': PropertySchema(
+      id: 10,
+      name: r'strokeCount',
+      type: IsarType.long,
+    ),
+    r'strokePaths': PropertySchema(
+      id: 11,
+      name: r'strokePaths',
+      type: IsarType.stringList,
     )
   },
   estimateSize: _kanaCardEstimateSize,
@@ -97,6 +107,13 @@ int _kanaCardEstimateSize(
     }
   }
   bytesCount += 3 + object.romaji.length * 3;
+  bytesCount += 3 + object.strokePaths.length * 3;
+  {
+    for (var i = 0; i < object.strokePaths.length; i++) {
+      final value = object.strokePaths[i];
+      bytesCount += value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -116,6 +133,8 @@ void _kanaCardSerialize(
   writer.writeString(offsets[7], object.romaji);
   writer.writeLong(offsets[8], object.row);
   writer.writeLong(offsets[9], object.script);
+  writer.writeLong(offsets[10], object.strokeCount);
+  writer.writeStringList(offsets[11], object.strokePaths);
 }
 
 KanaCard _kanaCardDeserialize(
@@ -136,6 +155,8 @@ KanaCard _kanaCardDeserialize(
   object.romaji = reader.readString(offsets[7]);
   object.row = reader.readLong(offsets[8]);
   object.script = reader.readLong(offsets[9]);
+  object.strokeCount = reader.readLong(offsets[10]);
+  object.strokePaths = reader.readStringList(offsets[11]) ?? [];
   return object;
 }
 
@@ -166,6 +187,10 @@ P _kanaCardDeserializeProp<P>(
       return (reader.readLong(offset)) as P;
     case 9:
       return (reader.readLong(offset)) as P;
+    case 10:
+      return (reader.readLong(offset)) as P;
+    case 11:
+      return (reader.readStringList(offset) ?? []) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
@@ -1183,6 +1208,284 @@ extension KanaCardQueryFilter
       ));
     });
   }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> strokeCountEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'strokeCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokeCountGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'strokeCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> strokeCountLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'strokeCount',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> strokeCountBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'strokeCount',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'strokePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'strokePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'strokePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'strokePaths',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'strokePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'strokePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'strokePaths',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'strokePaths',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'strokePaths',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'strokePaths',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'strokePaths',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition> strokePathsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'strokePaths',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'strokePaths',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'strokePaths',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'strokePaths',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterFilterCondition>
+      strokePathsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'strokePaths',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
 }
 
 extension KanaCardQueryObject
@@ -1309,6 +1612,18 @@ extension KanaCardQuerySortBy on QueryBuilder<KanaCard, KanaCard, QSortBy> {
   QueryBuilder<KanaCard, KanaCard, QAfterSortBy> sortByScriptDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'script', Sort.desc);
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> sortByStrokeCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'strokeCount', Sort.asc);
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> sortByStrokeCountDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'strokeCount', Sort.desc);
     });
   }
 }
@@ -1446,6 +1761,18 @@ extension KanaCardQuerySortThenBy
       return query.addSortBy(r'script', Sort.desc);
     });
   }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> thenByStrokeCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'strokeCount', Sort.asc);
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QAfterSortBy> thenByStrokeCountDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'strokeCount', Sort.desc);
+    });
+  }
 }
 
 extension KanaCardQueryWhereDistinct
@@ -1511,6 +1838,18 @@ extension KanaCardQueryWhereDistinct
   QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByScript() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'script');
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByStrokeCount() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'strokeCount');
+    });
+  }
+
+  QueryBuilder<KanaCard, KanaCard, QDistinct> distinctByStrokePaths() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'strokePaths');
     });
   }
 }
@@ -1580,6 +1919,18 @@ extension KanaCardQueryProperty
   QueryBuilder<KanaCard, int, QQueryOperations> scriptProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'script');
+    });
+  }
+
+  QueryBuilder<KanaCard, int, QQueryOperations> strokeCountProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'strokeCount');
+    });
+  }
+
+  QueryBuilder<KanaCard, List<String>, QQueryOperations> strokePathsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'strokePaths');
     });
   }
 }

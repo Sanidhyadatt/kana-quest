@@ -45,7 +45,11 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
 
   static final Map<int, Map<String, int>> _rowCharacterOrder = () {
     final order = <int, Map<String, int>>{};
-    final allSeeds = [...seedKanaCards, ...seedKatakanaCards, ...seedKanjiCards];
+    final allSeeds = [
+      ...seedKanaCards,
+      ...seedKatakanaCards,
+      ...seedKanjiCards,
+    ];
     for (var i = 0; i < allSeeds.length; i += 1) {
       final seed = allSeeds[i];
       final rowOrder = order.putIfAbsent(seed.row, () => <String, int>{});
@@ -88,7 +92,11 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     final cards = await isar.kanaCards.where().findAll();
 
     final validCards = cards
-        .where((card) => card.character.trim().isNotEmpty && card.script == widget.scriptType)
+        .where(
+          (card) =>
+              card.character.trim().isNotEmpty &&
+              card.script == widget.scriptType,
+        )
         .toList();
 
     final availableRows = validCards.map((card) => card.row).toSet().toList()
@@ -111,7 +119,9 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     var sessionRow = baseRow;
     final currentRowFallback = List<KanaCard>.from(currentRowCards);
     _sortCardsForRow(currentRowFallback, baseRow);
-    List<KanaCard> sessionCards = dueCards.isNotEmpty ? dueCards : currentRowFallback;
+    List<KanaCard> sessionCards = dueCards.isNotEmpty
+        ? dueCards
+        : currentRowFallback;
 
     if (!mounted) {
       return;
@@ -208,7 +218,9 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Audio playback is unavailable on this device.')),
+      const SnackBar(
+        content: Text('Audio playback is unavailable on this device.'),
+      ),
     );
   }
 
@@ -221,10 +233,12 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
 
     for (final attempt in attempts) {
       try {
-        final result = await Process.run(
-          attempt.command,
-          [...attempt.args.sublist(0, attempt.args.length - 1), '-r', '-10', text],
-        );
+        final result = await Process.run(attempt.command, [
+          ...attempt.args.sublist(0, attempt.args.length - 1),
+          '-r',
+          '-10',
+          text,
+        ]);
         if (result.exitCode == 0) return true;
       } catch (_) {}
     }
@@ -303,7 +317,11 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
   Widget _buildActiveSession(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final card = _dueCards.first;
-    final scriptLabel = card.script == 0 ? 'Hiragana' : card.script == 1 ? 'Katakana' : 'Kanji';
+    final scriptLabel = card.script == 0
+        ? 'Hiragana'
+        : card.script == 1
+        ? 'Katakana'
+        : 'Kanji';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -350,10 +368,11 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
                     children: [
                       Text(
                         'Pronunciation: ${card.romaji.toUpperCase()}',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: scheme.primary,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                       const SizedBox(height: 20),
                       Text(
@@ -382,10 +401,15 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
                                 isScrollControlled: true,
                                 backgroundColor: Colors.transparent,
                                 builder: (context) => Container(
-                                  height: MediaQuery.of(context).size.height * 0.85,
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.85,
                                   decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surface,
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(32),
+                                    ),
                                   ),
                                   child: MnemonicDiscoveryScreen(
                                     character: card.character,
@@ -393,6 +417,7 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
                                     mnemonic: card.mnemonic,
                                     relatedWords: card.relatedWords,
                                     scriptType: card.script,
+                                    cardId: card.id,
                                     showGotIt: false,
                                   ),
                                 ),
@@ -446,10 +471,7 @@ class _PracticeModeBanner extends StatelessWidget {
               ),
             ),
           ),
-          TextButton(
-            onPressed: onExit,
-            child: const Text('Back'),
-          ),
+          TextButton(onPressed: onExit, child: const Text('Back')),
         ],
       ),
     );
@@ -518,7 +540,10 @@ class _SessionMeta extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 child: Text(
                   'Combo x$comboStreak',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -550,10 +575,10 @@ class _CardKanaText extends StatelessWidget {
       locale: const Locale('ja', 'JP'),
       strutStyle: const StrutStyle(forceStrutHeight: true),
       style: Theme.of(context).textTheme.displayLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            height: 1.0,
-            letterSpacing: 0,
-          ),
+        fontWeight: FontWeight.w800,
+        height: 1.0,
+        letterSpacing: 0,
+      ),
     );
   }
 }
@@ -647,9 +672,9 @@ class _RatingButton extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: activeColor,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: activeColor,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -860,7 +885,10 @@ class _FlipCardState extends State<FlipCard>
               return FadeTransition(
                 opacity: animation,
                 child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
+                  scale: Tween<double>(
+                    begin: 0.98,
+                    end: 1.0,
+                  ).animate(animation),
                   child: child,
                 ),
               );

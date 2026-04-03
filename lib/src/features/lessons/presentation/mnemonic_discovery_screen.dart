@@ -49,10 +49,13 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
   bool _marking = false;
   bool _showStrokeGuide = false;
   bool _isDrawing = false;
+  List<String>? _strokePaths;
+  int _strokeCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _loadStrokeData();
     _initTts();
   }
 
@@ -71,9 +74,57 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
     } catch (_) {}
   }
 
+  Future<void> _loadStrokeData() async {
+    final fallbackData = StrokePathRepository().getStrokeData(
+      widget.character.trim(),
+    );
+
+    if (widget.cardId == null) {
+      if (!mounted) return;
+      setState(() {
+        _strokePaths = fallbackData?.paths;
+        _strokeCount =
+            fallbackData?.strokeCount ??
+            kanaCharacterInfo[widget.character]?.strokeCount ??
+            2;
+      });
+      return;
+    }
+
+    try {
+      final isar = await IsarDatabase.getInstance();
+      final card = await isar.kanaCards.get(widget.cardId!);
+      final storedPaths = card?.strokePaths;
+      final storedStrokeCount = card?.strokeCount ?? 0;
+      final paths = storedPaths != null && storedPaths.isNotEmpty
+          ? List<String>.from(storedPaths)
+          : fallbackData?.paths;
+
+      if (!mounted) return;
+      setState(() {
+        _strokePaths = paths;
+        _strokeCount = storedStrokeCount > 0
+            ? storedStrokeCount
+            : (paths?.length ??
+                  fallbackData?.strokeCount ??
+                  kanaCharacterInfo[widget.character]?.strokeCount ??
+                  2);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _strokePaths = fallbackData?.paths;
+        _strokeCount =
+            fallbackData?.strokeCount ??
+            kanaCharacterInfo[widget.character]?.strokeCount ??
+            2;
+      });
+    }
+  }
+
   Future<void> _playAudio() async {
     SystemSound.play(SystemSoundType.click);
-    
+
     // Robust lookup: trim character to handle accidental spaces
     final char = widget.character.trim();
     final info = kanaCharacterInfo[char];
@@ -133,12 +184,17 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final info = kanaCharacterInfo[widget.character];
-    final strokeCount = info?.strokeCount ?? 2;
+    final strokePaths =
+        _strokePaths ??
+        StrokePathRepository().getStrokeData(widget.character.trim())?.paths;
+    final strokeCount = _strokeCount > 0
+        ? _strokeCount
+        : (strokePaths?.length ?? info?.strokeCount ?? 2);
     final scriptName = widget.scriptType == 0
         ? 'Hiragana'
         : widget.scriptType == 1
-            ? 'Katakana'
-            : 'Kanji';
+        ? 'Katakana'
+        : 'Kanji';
 
     return Scaffold(
       body: DecoratedBox(
@@ -146,7 +202,11 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [scheme.surface, scheme.surfaceContainerLow, scheme.surface],
+            colors: [
+              scheme.surface,
+              scheme.surfaceContainerLow,
+              scheme.surface,
+            ],
           ),
         ),
         child: SafeArea(
@@ -164,8 +224,7 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                     Expanded(
                       child: Text(
                         '${widget.character} — $scriptName',
-                        style:
-                            Theme.of(context).textTheme.titleLarge?.copyWith(
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -177,7 +236,9 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
               // ── Body ────────────────────────────────────────
               Expanded(
                 child: ListView(
-                  physics: _isDrawing ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
+                  physics: _isDrawing
+                      ? const NeverScrollableScrollPhysics()
+                      : const BouncingScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                   children: [
                     // ── Character hero ───────────────────────────
@@ -187,8 +248,14 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final availWidth = constraints.maxWidth;
-                              final charSize = (availWidth * 0.45).clamp(60.0, 110.0);
-                              final imgSize = (availWidth * 0.38).clamp(50.0, 120.0);
+                              final charSize = (availWidth * 0.45).clamp(
+                                60.0,
+                                110.0,
+                              );
+                              final imgSize = (availWidth * 0.38).clamp(
+                                50.0,
+                                120.0,
+                              );
                               return Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -199,12 +266,12 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                                         .textTheme
                                         .displayLarge
                                         ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: charSize,
-                                      height: 1.0,
-                                    ),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: charSize,
+                                          height: 1.0,
+                                        ),
                                   ),
-                                  if (widget.scriptType != 2) ...[  
+                                  if (widget.scriptType != 2) ...[
                                     SizedBox(width: availWidth * 0.06),
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(16),
@@ -227,14 +294,12 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                           const SizedBox(height: 16),
                           Text(
                             widget.romaji.toUpperCase(),
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
+                            style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
-                              color: scheme.primary,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 6,
-                            ),
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 6,
+                                ),
                           ),
                           const SizedBox(height: 18),
                           FilledButton.tonalIcon(
@@ -277,14 +342,12 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                           Expanded(
                             child: Text(
                               widget.mnemonic,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
-                                color: scheme.onSurface,
-                                fontWeight: FontWeight.w600,
-                                height: 1.55,
-                              ),
+                                    color: scheme.onSurface,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.55,
+                                  ),
                             ),
                           ),
                         ],
@@ -306,14 +369,15 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.gesture_rounded,
-                                  size: 20, color: scheme.primary),
+                              Icon(
+                                Icons.gesture_rounded,
+                                size: 20,
+                                color: scheme.primary,
+                              ),
                               const SizedBox(width: 10),
                               Text(
                                 'Stroke Order Guide',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w800),
                               ),
                               const Spacer(),
@@ -328,20 +392,23 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                             const SizedBox(height: 20),
                             Row(
                               children: [
-                                Icon(Icons.edit_rounded,
-                                    size: 16, color: scheme.primary),
+                                Icon(
+                                  Icons.edit_rounded,
+                                  size: 16,
+                                  color: scheme.primary,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Sequence',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
+                                  style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                                 const Spacer(),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: scheme.surfaceContainerLow,
                                     borderRadius: BorderRadius.circular(999),
@@ -363,6 +430,7 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                             _StrokeOrderDisplay(
                               character: widget.character,
                               strokeCount: strokeCount,
+                              strokePaths: strokePaths,
                             ),
                             const SizedBox(height: 24),
                             Row(
@@ -395,8 +463,10 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                               _TracingCanvas(
                                 character: widget.character,
                                 strokeCount: strokeCount,
+                                strokePaths: strokePaths,
                                 onDrawingStateChanged: (drawing) {
-                                  if (mounted) setState(() => _isDrawing = drawing);
+                                  if (mounted)
+                                    setState(() => _isDrawing = drawing);
                                 },
                               ),
                             ],
@@ -404,9 +474,7 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                             const SizedBox(height: 8),
                             Text(
                               'Learn how to write this character step-by-step.',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: scheme.onSurfaceVariant),
                             ),
                           ],
@@ -426,7 +494,9 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.done_all_rounded),
                           label: const Text('Got it!'),
@@ -469,9 +539,9 @@ class _VocabularySection extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 'Related Vocabulary',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -479,8 +549,7 @@ class _VocabularySection extends StatelessWidget {
           ...words.map(
             (w) => Container(
               margin: const EdgeInsets.only(bottom: 12),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(16),
@@ -496,32 +565,30 @@ class _VocabularySection extends StatelessWidget {
                       children: [
                         Text(
                           w.word,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
+                          style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: scheme.primary,
-                            letterSpacing: 1,
-                          ),
+                                fontWeight: FontWeight.w900,
+                                color: scheme.primary,
+                                letterSpacing: 1,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           w.meaning,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
+                          style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                            color: scheme.onSurface,
-                            fontWeight: FontWeight.w600,
-                          ),
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: scheme.primary.withValues(alpha: 0.3)),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: scheme.primary.withValues(alpha: 0.3),
+                  ),
                 ],
               ),
             ),
@@ -570,30 +637,35 @@ class _StrokeOrderDisplay extends StatelessWidget {
   const _StrokeOrderDisplay({
     required this.character,
     required this.strokeCount,
+    this.strokePaths,
   });
   final String character;
   final int strokeCount;
+  final List<String>? strokePaths;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final strokeData = StrokePathRepository().getStrokeData(character.trim());
+    final paths =
+        strokePaths ??
+        StrokePathRepository().getStrokeData(character.trim())?.paths;
+    final displayStrokeCount = paths?.length ?? strokeCount;
 
     // ── Fallback: no vector data  ─────────────────────────────
-    if (strokeData == null) {
+    if (paths == null || paths.isEmpty) {
       return Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: List.generate(strokeCount, (i) {
+        children: List.generate(displayStrokeCount, (i) {
           return _StrokeBox(
             color: scheme.primaryContainer.withValues(alpha: 0.4),
             label: '${i + 1}',
             child: Text(
               character,
               locale: const Locale('ja', 'JP'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: scheme.onSurface,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(color: scheme.onSurface),
             ),
           );
         }),
@@ -602,29 +674,39 @@ class _StrokeOrderDisplay extends StatelessWidget {
 
     // ── Vector data available: Duolingo-style incremental boxes ──
     // Box k shows strokes 1..k with stroke k highlighted.
-    final boxes = List.generate(strokeCount, (i) {
+    final boxes = List.generate(displayStrokeCount, (i) {
       return _StrokeBox(
         color: scheme.primaryContainer.withValues(alpha: 0.35),
         label: '${i + 1}',
-        child: CustomPaint(
-          size: const Size(52, 52),
-          painter: StrokeOrderPainter(
-            paths: strokeData.paths,
-            showUpTo: i + 1,           // show strokes 0..i
-            brushColor: scheme.primary,
-            strokeWidth: 4.0,
-            hintColor: scheme.primary.withValues(alpha: 0.4),
-            showArrow: true,
-          ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Text(
+              character,
+              locale: const Locale('ja', 'JP'),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: scheme.onSurface.withValues(alpha: 0.10),
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
+            ),
+            CustomPaint(
+              size: const Size(52, 52),
+              painter: StrokeOrderPainter(
+                paths: paths,
+                showUpTo: i + 1, // show strokes 0..i
+                brushColor: scheme.primary,
+                strokeWidth: 4.0,
+                hintColor: scheme.primary.withValues(alpha: 0.4),
+                showArrow: true,
+              ),
+            ),
+          ],
         ),
       );
     });
 
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: boxes,
-    );
+    return Wrap(spacing: 10, runSpacing: 10, children: boxes);
   }
 }
 
@@ -687,10 +769,12 @@ class _TracingCanvas extends StatefulWidget {
   const _TracingCanvas({
     required this.character,
     required this.strokeCount,
+    this.strokePaths,
     this.onDrawingStateChanged,
   });
   final String character;
   final int strokeCount;
+  final List<String>? strokePaths;
   final ValueChanged<bool>? onDrawingStateChanged;
 
   @override
@@ -700,13 +784,14 @@ class _TracingCanvas extends StatefulWidget {
 class _TracingCanvasState extends State<_TracingCanvas>
     with SingleTickerProviderStateMixin {
   // ── state ──────────────────────────────────────────────────
-  final _completedUserStrokes = <List<Offset>>[];  // screen-space strokes the user drew
+  final _completedUserStrokes =
+      <List<Offset>>[]; // screen-space strokes the user drew
   List<Offset> _currentStrokePoints = [];
-  int _activeStrokeIndex = 0;     // which stroke are we asking the user to draw?
+  int _activeStrokeIndex = 0; // which stroke are we asking the user to draw?
   bool _completed = false;
 
   // Feedback state for the last committed stroke
-  bool? _lastStrokeWasValid;     // null → no result yet; true/false after release
+  bool? _lastStrokeWasValid; // null → no result yet; true/false after release
 
   // Cached target points in canonical 109×109 space
   List<Offset>? _targetPoints;
@@ -725,11 +810,14 @@ class _TracingCanvasState extends State<_TracingCanvas>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _shakeAnimation = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
+    _shakeAnimation =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut),
+        );
   }
 
   @override
@@ -741,9 +829,11 @@ class _TracingCanvasState extends State<_TracingCanvas>
   // ── helpers ────────────────────────────────────────────────
 
   void _loadTargetPoints() {
-    final data = StrokePathRepository().getStrokeData(widget.character);
-    if (data != null && _activeStrokeIndex < data.paths.length) {
-      final svgPath = data.paths[_activeStrokeIndex];
+    final paths =
+        widget.strokePaths ??
+        StrokePathRepository().getStrokeData(widget.character.trim())?.paths;
+    if (paths != null && _activeStrokeIndex < paths.length) {
+      final svgPath = paths[_activeStrokeIndex];
       if (svgPath.isNotEmpty) {
         final path = parseSvgPathData(svgPath);
         _targetPoints = PathValidator.samplePath(path, interval: 2.0);
@@ -751,6 +841,13 @@ class _TracingCanvasState extends State<_TracingCanvas>
       }
     }
     _targetPoints = null;
+  }
+
+  int _totalStrokeCount() {
+    final paths =
+        widget.strokePaths ??
+        StrokePathRepository().getStrokeData(widget.character.trim())?.paths;
+    return paths?.length ?? widget.strokeCount;
   }
 
   void _reset() {
@@ -805,8 +902,7 @@ class _TracingCanvasState extends State<_TracingCanvas>
     }
 
     // Convert user stroke to canonical space
-    final canonicalPoints =
-        _currentStrokePoints.map(_toCanonical).toList();
+    final canonicalPoints = _currentStrokePoints.map(_toCanonical).toList();
 
     // Validate against target
     final result = PathValidator.validateCompletedStroke(
@@ -821,7 +917,7 @@ class _TracingCanvasState extends State<_TracingCanvas>
         _currentStrokePoints.clear();
         _lastStrokeWasValid = true;
         _activeStrokeIndex++;
-        if (_activeStrokeIndex >= widget.strokeCount) {
+        if (_activeStrokeIndex >= _totalStrokeCount()) {
           _completed = true;
         } else {
           _loadTargetPoints();
@@ -845,7 +941,10 @@ class _TracingCanvasState extends State<_TracingCanvas>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final strokeData = StrokePathRepository().getStrokeData(widget.character);
+    final paths =
+        widget.strokePaths ??
+        StrokePathRepository().getStrokeData(widget.character.trim())?.paths;
+    final totalStrokeCount = paths?.length ?? widget.strokeCount;
 
     // Header colour / message
     final Color headerBg;
@@ -862,15 +961,17 @@ class _TracingCanvasState extends State<_TracingCanvas>
     } else {
       headerBg = scheme.primary.withValues(alpha: 0.08);
       headerFg = scheme.primary;
-      headerText =
-          'Draw Stroke ${_activeStrokeIndex + 1} of ${widget.strokeCount}';
+      headerText = 'Draw Stroke ${_activeStrokeIndex + 1} of $totalStrokeCount';
     }
 
     return AnimatedBuilder(
       animation: _shakeAnimation,
       builder: (context, child) {
         return Transform.translate(
-          offset: Offset(_lastStrokeWasValid == false ? _shakeAnimation.value : 0, 0),
+          offset: Offset(
+            _lastStrokeWasValid == false ? _shakeAnimation.value : 0,
+            0,
+          ),
           child: child,
         );
       },
@@ -881,13 +982,17 @@ class _TracingCanvasState extends State<_TracingCanvas>
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: headerBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
               border: Border.all(color: scheme.outlineVariant, width: 1.5),
             ),
             child: Row(
               children: [
                 Icon(
-                  _completed ? Icons.workspace_premium_rounded : Icons.brush_rounded,
+                  _completed
+                      ? Icons.workspace_premium_rounded
+                      : Icons.brush_rounded,
                   size: 16,
                   color: headerFg,
                 ),
@@ -939,31 +1044,41 @@ class _TracingCanvasState extends State<_TracingCanvas>
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerLow,
                       borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(16)),
+                        bottom: Radius.circular(16),
+                      ),
                       border: Border(
                         left: BorderSide(
-                            color: scheme.outlineVariant, width: 1.5),
+                          color: scheme.outlineVariant,
+                          width: 1.5,
+                        ),
                         right: BorderSide(
-                            color: scheme.outlineVariant, width: 1.5),
+                          color: scheme.outlineVariant,
+                          width: 1.5,
+                        ),
                         bottom: BorderSide(
-                            color: scheme.outlineVariant, width: 1.5),
+                          color: scheme.outlineVariant,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(16)),
+                        bottom: Radius.circular(16),
+                      ),
                       child: Stack(
                         children: [
                           // Layer 1: Ghost of entire character (very faint)
-                          if (strokeData != null && !_completed)
+                          if (paths != null && !_completed)
                             Positioned.fill(
                               child: Padding(
                                 padding: const EdgeInsets.all(30),
                                 child: CustomPaint(
                                   painter: StrokeOrderPainter(
-                                    paths: strokeData.paths,
+                                    paths: paths,
                                     showUpTo: 0,
-                                    brushColor: scheme.onSurface.withValues(alpha: 0.08),
+                                    brushColor: scheme.onSurface.withValues(
+                                      alpha: 0.08,
+                                    ),
                                     strokeWidth: 8,
                                     showArrow: false,
                                   ),
@@ -972,13 +1087,15 @@ class _TracingCanvasState extends State<_TracingCanvas>
                             ),
 
                           // Layer 2: Completed SVG strokes in green
-                          if (strokeData != null && _activeStrokeIndex > 0 && !_completed)
+                          if (paths != null &&
+                              _activeStrokeIndex > 0 &&
+                              !_completed)
                             Positioned.fill(
                               child: Padding(
                                 padding: const EdgeInsets.all(30),
                                 child: CustomPaint(
                                   painter: StrokeOrderPainter(
-                                    paths: strokeData.paths,
+                                    paths: paths,
                                     showUpTo: _activeStrokeIndex,
                                     brushColor: Colors.green.shade600,
                                     strokeWidth: 7,
@@ -989,17 +1106,19 @@ class _TracingCanvasState extends State<_TracingCanvas>
                             ),
 
                           // Layer 3: Active stroke ghost guide with arrow
-                          if (strokeData != null &&
+                          if (paths != null &&
                               !_completed &&
-                              _activeStrokeIndex < strokeData.paths.length)
+                              _activeStrokeIndex < paths.length)
                             Positioned.fill(
                               child: Padding(
                                 padding: const EdgeInsets.all(30),
                                 child: CustomPaint(
                                   painter: StrokeOrderPainter(
-                                    paths: [strokeData.paths[_activeStrokeIndex]],
+                                    paths: [paths[_activeStrokeIndex]],
                                     showUpTo: 1,
-                                    brushColor: scheme.primary.withValues(alpha: 0.30),
+                                    brushColor: scheme.primary.withValues(
+                                      alpha: 0.30,
+                                    ),
                                     strokeWidth: 9,
                                     showArrow: true,
                                   ),
@@ -1012,7 +1131,9 @@ class _TracingCanvasState extends State<_TracingCanvas>
                             painter: _UserStrokePainter(
                               completedStrokes: _completedUserStrokes,
                               activeStroke: _currentStrokePoints,
-                              completedColor: Colors.green.withValues(alpha: 0.7),
+                              completedColor: Colors.green.withValues(
+                                alpha: 0.7,
+                              ),
                               activeColor: scheme.primary,
                             ),
                             child: const SizedBox.expand(),
