@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:isar/isar.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/storage/isar_database.dart';
+import '../../dojo/presentation/dojo_providers.dart';
+import '../../home/presentation/home_providers.dart';
 import '../../lessons/data/models/kana_card.dart';
 import '../../lessons/data/seed/kana_seed_data.dart';
 import '../../lessons/data/seed/stroke_order_data.dart';
@@ -184,6 +187,12 @@ class _ReviewArenaScreenState extends State<ReviewArenaScreen> {
     });
 
     await const StreakService().recordReview();
+
+    if (mounted) {
+      final container = ProviderScope.containerOf(context, listen: false);
+      container.invalidate(dojoStatsProvider);
+      container.invalidate(worldMapProgressProvider);
+    }
 
     if (_dueCards.isEmpty) {
       _confettiController.play();

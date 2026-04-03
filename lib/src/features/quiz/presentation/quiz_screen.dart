@@ -3,10 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../dojo/presentation/dojo_providers.dart';
 import '../../home/presentation/home_providers.dart';
 import '../../../app/app.dart';
+import '../data/quiz_history_repository.dart';
 import '../domain/quiz_generator.dart';
+import '../domain/quiz_history.dart';
 import '../domain/quiz_question.dart';
+import 'quiz_history_providers.dart';
+import 'quiz_review_view.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key});
@@ -26,6 +31,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   int _correctCount = 0;
   bool _questionReady = false;
   bool _sessionRecorded = false;
+  DateTime _sessionStartedAt = DateTime.now();
+  List<QuizAnswerRecord> _answerRecords = <QuizAnswerRecord>[];
 
   late AnimationController _progressController;
   late AnimationController _bounceController;
@@ -42,10 +49,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _bounceAnim = TweenSequence([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.1), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _bounceController, curve: Curves.easeOut));
+    _bounceAnim =
+        TweenSequence([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.1), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _bounceController, curve: Curves.easeOut),
+        );
     _generateQuestions();
   }
 
@@ -56,12 +66,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     super.dispose();
   }
 
-
   Future<void> _generateQuestions() async {
     if (!mounted) return;
 
     final newQuestions = QuizGenerator().generate(count: _totalQuestions);
-    
+
     setState(() {
       _questions = newQuestions;
       _currentIndex = 0;
@@ -70,6 +79,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _correctCount = 0;
       _questionReady = false;
       _sessionRecorded = false;
+      _sessionStartedAt = DateTime.now();
+      _answerRecords = <QuizAnswerRecord>[];
     });
     if (newQuestions.isNotEmpty) {
       _progressController.animateTo(1 / _totalQuestions);
@@ -88,11 +99,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
     });
 
+    _answerRecords.add(
+      QuizAnswerRecord.fromQuestion(_questions[_currentIndex], choice),
+    );
+
     if (isCorrect) {
       HapticFeedback.mediumImpact();
+      SystemSound.play(SystemSoundType.click);
       _bounceController.forward(from: 0);
     } else {
       HapticFeedback.heavyImpact();
+      SystemSound.play(SystemSoundType.alert);
     }
   }
 
@@ -136,9 +153,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       questionsAnswered + _questions.length,
     );
 
+    final session = QuizSessionRecord(
+      id: _sessionStartedAt.microsecondsSinceEpoch.toString(),
+      startedAt: _sessionStartedAt,
+      completedAt: DateTime.now(),
+      answers: List<QuizAnswerRecord>.unmodifiable(_answerRecords),
+    );
+
+    await const QuizHistoryRepository().saveSession(session);
+    ref.invalidate(quizHistoryProvider);
+    ref.invalidate(dojoStatsProvider);
+
     _sessionRecorded = true;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -147,8 +174,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     // Score screen
     if (_currentIndex >= _questions.length && _questions.isNotEmpty) {
       return _ScoreScreen(
-        correct: _correctCount,
-        total: _totalQuestions,
+        session: QuizSessionRecord(
+          id: _sessionStartedAt.microsecondsSinceEpoch.toString(),
+          startedAt: _sessionStartedAt,
+          completedAt: DateTime.now(),
+          answers: List<QuizAnswerRecord>.unmodifiable(_answerRecords),
+        ),
         onRestart: _generateQuestions,
       );
     }
@@ -163,13 +194,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               const SizedBox(height: 16),
               Text(
                 'Initializing Quiz...',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.grey),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.grey),
               ),
               const SizedBox(height: 12),
               const CircularProgressIndicator(),
               const SizedBox(height: 24),
               TextButton(
-                onPressed: _generateQuestions,
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  SystemSound.play(SystemSoundType.click);
+                  _generateQuestions();
+                },
                 child: const Text('Still loading? Tap to Retry'),
               ),
             ],
@@ -206,26 +243,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                     Text(
                       '${_currentIndex + 1} / $_totalQuestions',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                     const Spacer(),
                     // Score chip
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: scheme.primaryContainer,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '✓ $_correctCount',
-                        style:
-                            Theme.of(context).textTheme.labelMedium?.copyWith(
-                                  color: scheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: scheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                     ),
                   ],
@@ -234,7 +273,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
               // ── Progress bar ─────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: AnimatedBuilder(
                   animation: _progressController,
                   builder: (context, _) => LinearProgressIndicator(
@@ -257,19 +299,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                       // Question type label
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: scheme.primaryContainer,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           _questionTypeLabel(question.type),
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: scheme.onPrimaryContainer,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
-                                  ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -280,7 +324,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 24),
+                            horizontal: 24,
+                            vertical: 24,
+                          ),
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerLowest,
                             borderRadius: BorderRadius.circular(28),
@@ -301,7 +347,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                     Text(
                                       question.prompt,
                                       textAlign: TextAlign.center,
-                                      style: _promptTextStyle(context, question.type),
+                                      style: _promptTextStyle(
+                                        context,
+                                        question.type,
+                                      ),
                                     ),
                                     if (question.promptSubtitle.isNotEmpty) ...[
                                       const SizedBox(height: 8),
@@ -311,7 +360,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                             .textTheme
                                             .labelMedium
                                             ?.copyWith(
-                                                color: scheme.onSurfaceVariant),
+                                              color: scheme.onSurfaceVariant,
+                                            ),
                                       ),
                                     ],
                                   ],
@@ -336,9 +386,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             children: [
                               Text(
                                 'Ready for this one?',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w800),
                               ),
                               const SizedBox(height: 10),
@@ -346,6 +394,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                                 width: double.infinity,
                                 child: FilledButton(
                                   onPressed: () {
+                                    HapticFeedback.selectionClick();
+                                    SystemSound.play(SystemSoundType.click);
                                     setState(() {
                                       _questionReady = true;
                                     });
@@ -362,11 +412,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 2.4,
-                          ),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 10,
+                                crossAxisSpacing: 10,
+                                childAspectRatio: 2.4,
+                              ),
                           itemCount: question.choices.length,
                           itemBuilder: (context, i) {
                             final choice = question.choices[i];
@@ -393,13 +443,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           width: double.infinity,
                           height: 52,
                           child: FilledButton(
-                            onPressed: _nextQuestion,
+                            onPressed: () {
+                              HapticFeedback.selectionClick();
+                              SystemSound.play(SystemSoundType.click);
+                              _nextQuestion();
+                            },
                             child: Text(
                               _currentIndex + 1 >= _totalQuestions
                                   ? 'See Results'
                                   : 'Continue',
                               style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w800),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),
@@ -432,17 +488,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     switch (type) {
       case QuizQuestionType.kanaToRomaji:
         return Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontWeight: FontWeight.w900,
-              height: 1.0,
-            );
+          fontWeight: FontWeight.w900,
+          height: 1.0,
+        );
       case QuizQuestionType.japaneseToEnglish:
-        return Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.w900,
-            );
+        return Theme.of(
+          context,
+        ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900);
       case QuizQuestionType.englishToJapanese:
-        return Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            );
+        return Theme.of(
+          context,
+        ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700);
     }
   }
 }
@@ -499,7 +555,7 @@ class _ChoiceTile extends StatelessWidget {
                 BoxShadow(
                   color: Colors.green.withValues(alpha: 0.3),
                   blurRadius: 8,
-                )
+                ),
               ]
             : null,
       ),
@@ -513,9 +569,9 @@ class _ChoiceTile extends StatelessWidget {
               choice,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w800,
-                  ),
+                color: textColor,
+                fontWeight: FontWeight.w800,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -560,16 +616,16 @@ class _FeedbackBanner extends StatelessWidget {
                 Text(
                   isCorrect ? '🎉 Correct!' : '✗ Incorrect',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 if (!isCorrect)
                   Text(
                     'Correct answer: $correctAnswer',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurface,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: scheme.onSurface),
                   ),
               ],
             ),
@@ -581,28 +637,29 @@ class _FeedbackBanner extends StatelessWidget {
 }
 
 class _ScoreScreen extends ConsumerWidget {
-  const _ScoreScreen({
-    required this.correct,
-    required this.total,
-    required this.onRestart,
-  });
+  const _ScoreScreen({required this.session, required this.onRestart});
 
-  final int correct;
-  final int total;
+  final QuizSessionRecord session;
   final VoidCallback onRestart;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final pct = (correct / total * 100).round();
-    final emoji = pct == 100 ? '🏆' : pct >= 80 ? '🎉' : pct >= 60 ? '😊' : '📚';
+    final pct = (session.accuracy * 100).round();
+    final emoji = pct == 100
+        ? '🏆'
+        : pct >= 80
+        ? '🎉'
+        : pct >= 60
+        ? '😊'
+        : '📚';
     final message = pct == 100
         ? 'Perfect score!'
         : pct >= 80
-            ? 'Great job!'
-            : pct >= 60
-                ? 'Good effort!'
-                : 'Keep practising!';
+        ? 'Great job!'
+        : pct >= 60
+        ? 'Good effort!'
+        : 'Keep practising!';
 
     return Scaffold(
       body: DecoratedBox(
@@ -617,83 +674,173 @@ class _ScoreScreen extends ConsumerWidget {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 80)),
-                  const SizedBox(height: 16),
-                  Text(
-                    message,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$correct / $total correct',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: 140,
-                    height: 140,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          value: correct / total,
-                          strokeWidth: 12,
-                          backgroundColor: scheme.surfaceContainerHighest,
-                          color: pct >= 80 ? Colors.green : scheme.primary,
-                        ),
-                        Text(
-                          '$pct%',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineLarge
-                              ?.copyWith(fontWeight: FontWeight.w900),
-                        ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        scheme.primaryContainer.withValues(alpha: 0.7),
+                        scheme.secondaryContainer.withValues(alpha: 0.7),
                       ],
                     ),
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton.icon(
-                      onPressed: onRestart,
-                      icon: const Icon(Icons.replay_rounded),
-                      label: const Text('Try Again',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w800)),
+                  child: Column(
+                    children: [
+                      Text(emoji, style: const TextStyle(fontSize: 72)),
+                      const SizedBox(height: 12),
+                      Text(
+                        message,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: scheme.onPrimaryContainer,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${session.correctAnswers} / ${session.totalQuestions} correct',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: scheme.onPrimaryContainer.withValues(
+                            alpha: 0.88,
+                          ),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: session.accuracy,
+                              strokeWidth: 11,
+                              backgroundColor: scheme.surfaceContainerHighest,
+                              color: pct >= 80 ? Colors.green : scheme.primary,
+                            ),
+                            Text(
+                              '$pct%',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(fontWeight: FontWeight.w900),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _ScoreChip(
+                            label: '${session.correctAnswers} correct',
+                            icon: Icons.check_circle_rounded,
+                            color: Colors.green,
+                          ),
+                          _ScoreChip(
+                            label: '${session.wrongAnswers} wrong',
+                            icon: Icons.cancel_rounded,
+                            color: scheme.error,
+                          ),
+                          _ScoreChip(
+                            label: '${session.totalQuestions} questions',
+                            icon: Icons.quiz_rounded,
+                            color: scheme.primary,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                QuizSessionReviewView(session: session),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      SystemSound.play(SystemSoundType.click);
+                      onRestart();
+                    },
+                    icon: const Icon(Icons.replay_rounded),
+                    label: const Text(
+                      'Try Again',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Switch back to Learn tab and reset quiz state by generating new questions
-                        ref.read(selectedTabProvider.notifier).state = 0;
-                        onRestart(); 
-                      },
-                      icon: const Icon(Icons.home_rounded),
-                      label: const Text('Back to Home',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      SystemSound.play(SystemSoundType.click);
+                      ref.read(selectedTabProvider.notifier).state = 0;
+                      onRestart();
+                    },
+                    icon: const Icon(Icons.home_rounded),
+                    label: const Text(
+                      'Back to Home',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ScoreChip extends StatelessWidget {
+  const _ScoreChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

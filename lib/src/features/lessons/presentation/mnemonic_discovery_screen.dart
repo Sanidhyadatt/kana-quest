@@ -5,12 +5,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_drawing/path_drawing.dart';
 
 import '../../../core/services/streak_service.dart';
 import '../../../core/storage/isar_database.dart';
 import '../../../core/widgets/sensei_fox.dart';
 import '../../../core/utils/path_validator.dart';
+import '../../dojo/presentation/dojo_providers.dart';
+import '../../home/presentation/home_providers.dart';
 import '../data/models/kana_card.dart';
 import '../data/seed/stroke_order_data.dart';
 import '../data/repositories/stroke_path_repository.dart';
@@ -170,6 +173,9 @@ class _MnemonicDiscoveryScreenState extends State<MnemonicDiscoveryScreen> {
           const SrsService().applyReview(card: card, rating: 3);
           await isar.writeTxn(() => isar.kanaCards.put(card));
           await const StreakService().recordReview();
+          final container = ProviderScope.containerOf(context, listen: false);
+          container.invalidate(dojoStatsProvider);
+          container.invalidate(worldMapProgressProvider);
         }
       }
     } finally {

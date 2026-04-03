@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/theme_mode_controller.dart';
+import '../../quiz/domain/quiz_history.dart';
 import '../domain/dojo_stats.dart';
 import 'dojo_providers.dart';
+import '../../quiz/presentation/quiz_history_providers.dart';
+import '../../quiz/presentation/quiz_review_view.dart';
 
 class DojoScreen extends ConsumerWidget {
   const DojoScreen({super.key});
@@ -19,19 +23,13 @@ class DojoScreen extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            scheme.surface,
-            scheme.surfaceContainerLow,
-            scheme.surface,
-          ],
+          colors: [scheme.surface, scheme.surfaceContainerLow, scheme.surface],
         ),
       ),
       child: SafeArea(
         child: statsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(
-            child: Text('Could not load Dojo stats: $e'),
-          ),
+          error: (e, _) => Center(child: Text('Could not load Dojo stats: $e')),
           data: (stats) => _DojoBody(stats: stats),
         ),
       ),
@@ -55,6 +53,8 @@ class _DojoBody extends StatelessWidget {
         _ProgressOverviewSection(stats: stats),
         const SizedBox(height: 18),
         _QuizProgressSection(stats: stats),
+        const SizedBox(height: 18),
+        const _QuizHistorySection(),
         const SizedBox(height: 18),
         const _AppearanceSection(),
       ],
@@ -99,15 +99,18 @@ class _DojoHeader extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Okaeri, ${stats.userName}!',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                         ),
                         IconButton(
                           visualDensity: VisualDensity.compact,
                           icon: const Icon(Icons.edit_rounded, size: 18),
-                          onPressed: () => _showEditNameDialog(context, ref),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            SystemSound.play(SystemSoundType.click);
+                            _showEditNameDialog(context, ref);
+                          },
                         ),
                       ],
                     ),
@@ -151,13 +154,19 @@ class _DojoHeader extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              SystemSound.play(SystemSoundType.click);
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () async {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
+                HapticFeedback.mediumImpact();
+                SystemSound.play(SystemSoundType.click);
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setString('user_name', name);
                 ref.invalidate(dojoStatsProvider);
@@ -279,7 +288,8 @@ class _CalendarHeatmap extends StatelessWidget {
                 child: Column(
                   children: List.generate(7, (d) {
                     final date = alignedStart.add(Duration(days: w * 7 + d));
-                    final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    final key =
+                        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
                     final hasReview = reviewDates.contains(key);
                     final isFuture = date.isAfter(now);
 
@@ -337,15 +347,15 @@ class _MiniStatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -365,10 +375,7 @@ class _ProgressOverviewSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle(
-            icon: Icons.bar_chart_rounded,
-            label: 'Knowledge Map',
-          ),
+          _SectionTitle(icon: Icons.bar_chart_rounded, label: 'Knowledge Map'),
           const SizedBox(height: 20),
           _ProgressBar(
             label: 'Hiragana',
@@ -398,7 +405,7 @@ class _ProgressOverviewSection extends StatelessWidget {
                   icon: Icons.auto_awesome_rounded,
                   iconColor: scheme.primary,
                   value: '${stats.totalMastered}',
-                  label: 'Total Mastered',
+                  label: 'Total Completed',
                 ),
               ),
               const SizedBox(width: 12),
@@ -407,7 +414,7 @@ class _ProgressOverviewSection extends StatelessWidget {
                   icon: Icons.school_rounded,
                   iconColor: scheme.secondary,
                   value: '${stats.totalLearning}',
-                  label: 'Total Learning',
+                  label: 'In Progress',
                 ),
               ),
             ],
@@ -445,16 +452,16 @@ class _ProgressBar extends StatelessWidget {
           children: [
             Text(
               label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const Spacer(),
             Text(
-              '$mastered Mastered · $learning Learning',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+              '$mastered completed · $learning in progress',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -496,10 +503,7 @@ class _QuizProgressSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle(
-            icon: Icons.quiz_rounded,
-            label: 'Quiz Progress',
-          ),
+          _SectionTitle(icon: Icons.quiz_rounded, label: 'Quiz Progress'),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -508,7 +512,7 @@ class _QuizProgressSection extends StatelessWidget {
                   icon: Icons.play_circle_fill_rounded,
                   iconColor: scheme.primary,
                   value: '${stats.quizAttempts}',
-                  label: 'Quiz Attempted',
+                  label: 'Quizzes Attempted',
                 ),
               ),
               const SizedBox(width: 12),
@@ -530,7 +534,7 @@ class _QuizProgressSection extends StatelessWidget {
                   icon: Icons.help_rounded,
                   iconColor: scheme.secondary,
                   value: '${stats.quizQuestionsAnswered}',
-                  label: 'Questions Answered',
+                  label: 'Questions Seen',
                 ),
               ),
               const SizedBox(width: 12),
@@ -550,6 +554,128 @@ class _QuizProgressSection extends StatelessWidget {
   }
 }
 
+class _QuizHistorySection extends ConsumerWidget {
+  const _QuizHistorySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(quizHistoryProvider);
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            icon: Icons.history_rounded,
+            label: 'Quiz History',
+          ),
+          const SizedBox(height: 16),
+          historyAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (error, _) => Text(
+              'Could not load quiz history: $error',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            data: (sessions) {
+              if (sessions.isEmpty) {
+                return Text(
+                  'No quizzes completed yet. Finish a quiz and your score history will appear here.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                );
+              }
+
+              final visibleSessions = sessions.take(5).toList(growable: false);
+
+              return Column(
+                children: [
+                  ...visibleSessions.asMap().entries.map(
+                    (entry) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: entry.key == visibleSessions.length - 1
+                            ? 0
+                            : 12,
+                      ),
+                      child: QuizSessionSummaryCard(
+                        session: entry.value,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          SystemSound.play(SystemSoundType.click);
+                          _showQuizSessionDetails(context, entry.value);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showQuizSessionDetails(
+    BuildContext context,
+    QuizSessionRecord session,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.88,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.outlineVariant.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Quiz review',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: QuizSessionReviewView(session: session),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _AppearanceSection extends ConsumerWidget {
   const _AppearanceSection();
 
@@ -561,10 +687,7 @@ class _AppearanceSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(
-            icon: Icons.palette_rounded,
-            label: 'Appearance',
-          ),
+          const _SectionTitle(icon: Icons.palette_rounded, label: 'Appearance'),
           const SizedBox(height: 16),
           SegmentedButton<ThemeMode>(
             showSelectedIcon: false,
@@ -590,6 +713,8 @@ class _AppearanceSection extends ConsumerWidget {
               if (selection.isEmpty) {
                 return;
               }
+              HapticFeedback.selectionClick();
+              SystemSound.play(SystemSoundType.click);
               ref
                   .read(themeModeProvider.notifier)
                   .setThemeMode(selection.first);
@@ -600,7 +725,6 @@ class _AppearanceSection extends ConsumerWidget {
     );
   }
 }
-
 
 class _Card extends StatelessWidget {
   const _Card({required this.child});
@@ -635,9 +759,9 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           label,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
       ],
     );

@@ -45,7 +45,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
       await _tts.setLanguage('ja-JP');
       await _tts.setSpeechRate(0.5);
       await _tts.setPitch(1.0);
-      
+
       // Try to find a high-quality human-like voice if available
       final voices = await _tts.getVoices;
       if (voices is List) {
@@ -53,10 +53,12 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
           final voiceMap = v as Map;
           final name = voiceMap['name']?.toString().toLowerCase() ?? '';
           final locale = voiceMap['locale']?.toString().toLowerCase() ?? '';
-          if (locale.contains('ja') && 
-              (name.contains('network') || name.contains('jpf') || name.contains('jpi'))) {
+          if (locale.contains('ja') &&
+              (name.contains('network') ||
+                  name.contains('jpf') ||
+                  name.contains('jpi'))) {
             await _tts.setVoice(Map<String, String>.from(voiceMap));
-            break; 
+            break;
           }
         }
       }
@@ -65,6 +67,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
   }
 
   Future<void> _speak(String text) async {
+    HapticFeedback.selectionClick();
     SystemSound.play(SystemSoundType.click);
     if (_ttsReady) {
       try {
@@ -97,6 +100,7 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
     final scheme = Theme.of(context).colorScheme;
     final categories = _repo.getCategories();
     final words = _filteredWords;
+    final groupedWords = _groupWordsByCategory(words);
 
     return Scaffold(
       body: DecoratedBox(
@@ -130,8 +134,11 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                             color: scheme.primary,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.menu_book_rounded,
-                              color: scheme.onPrimary, size: 22),
+                          child: Icon(
+                            Icons.menu_book_rounded,
+                            color: scheme.onPrimary,
+                            size: 22,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Column(
@@ -139,16 +146,12 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                           children: [
                             Text(
                               '単語帳',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
+                              style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(color: scheme.primary),
                             ),
                             Text(
                               'Vocabulary',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineSmall
+                              style: Theme.of(context).textTheme.headlineSmall
                                   ?.copyWith(fontWeight: FontWeight.w900),
                             ),
                           ],
@@ -156,18 +159,20 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: scheme.primaryContainer,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             '${words.length} words',
-                            style:
-                                Theme.of(context).textTheme.labelMedium?.copyWith(
-                                      color: scheme.onPrimaryContainer,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: scheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
                         ),
                       ],
@@ -178,13 +183,17 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                     SearchBar(
                       controller: _searchController,
                       hintText: 'Search words, meanings, romaji...',
-                      leading: Icon(Icons.search_rounded,
-                          color: scheme.onSurfaceVariant),
+                      leading: Icon(
+                        Icons.search_rounded,
+                        color: scheme.onSurfaceVariant,
+                      ),
                       trailing: [
                         if (_searchQuery.isNotEmpty)
                           IconButton(
                             icon: const Icon(Icons.clear_rounded),
                             onPressed: () {
+                              HapticFeedback.selectionClick();
+                              SystemSound.play(SystemSoundType.click);
                               _searchController.clear();
                               setState(() => _searchQuery = '');
                             },
@@ -206,8 +215,11 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                           return FilterChip(
                             label: Text(cat),
                             selected: selected,
-                            onSelected: (_) =>
-                                setState(() => _selectedCategory = cat),
+                            onSelected: (_) {
+                              HapticFeedback.selectionClick();
+                              SystemSound.play(SystemSoundType.click);
+                              setState(() => _selectedCategory = cat);
+                            },
                             visualDensity: VisualDensity.compact,
                           );
                         },
@@ -225,21 +237,38 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.search_off_rounded,
-                                size: 64,
-                                color: scheme.onSurfaceVariant
-                                    .withValues(alpha: 0.4)),
+                            Icon(
+                              Icons.search_off_rounded,
+                              size: 64,
+                              color: scheme.onSurfaceVariant.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'No words found',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                      color: scheme.onSurfaceVariant),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
                             ),
                           ],
                         ),
+                      )
+                    : _selectedCategory == 'All'
+                    ? ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        children: [
+                          for (final entry in groupedWords.entries) ...[
+                            _CategoryHeader(label: entry.key),
+                            const SizedBox(height: 8),
+                            ...entry.value.map(
+                              (word) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _WordCard(word: word, onSpeak: _speak),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ],
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
@@ -253,6 +282,47 @@ class _VocabularyScreenState extends State<VocabularyScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Map<String, List<VocabularyWord>> _groupWordsByCategory(
+    List<VocabularyWord> words,
+  ) {
+    final grouped = <String, List<VocabularyWord>>{};
+    for (final word in words) {
+      grouped.putIfAbsent(word.category, () => <VocabularyWord>[]).add(word);
+    }
+    return grouped;
+  }
+}
+
+class _CategoryHeader extends StatelessWidget {
+  const _CategoryHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 22,
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -277,6 +347,7 @@ class _WordCard extends StatelessWidget {
       'Verbs': Colors.blue,
       'Adjectives': Colors.pink,
       'Places': Colors.amber,
+      'Anime Essentials': Colors.deepPurple,
     };
     final catColor = catColors[word.category] ?? scheme.primary;
 
@@ -284,9 +355,7 @@ class _WordCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-          color: catColor.withValues(alpha: 0.2),
-        ),
+        side: BorderSide(color: catColor.withValues(alpha: 0.2)),
       ),
       color: scheme.surfaceContainerLowest,
       child: InkWell(
@@ -304,26 +373,26 @@ class _WordCard extends StatelessWidget {
                   children: [
                     Text(
                       word.japanese,
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: scheme.onSurface,
-                                height: 1.0,
-                              ),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: scheme.onSurface,
+                            height: 1.0,
+                          ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       word.furigana,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: catColor,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: catColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       word.romaji,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -344,25 +413,26 @@ class _WordCard extends StatelessWidget {
                     Text(
                       word.english,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: scheme.onSurface,
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: catColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         word.category,
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: catColor,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: catColor,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -370,8 +440,10 @@ class _WordCard extends StatelessWidget {
               ),
               // Audio button
               IconButton(
-                icon: Icon(Icons.volume_up_rounded,
-                    color: catColor.withValues(alpha: 0.8)),
+                icon: Icon(
+                  Icons.volume_up_rounded,
+                  color: catColor.withValues(alpha: 0.8),
+                ),
                 onPressed: () => onSpeak(word.furigana),
                 tooltip: 'Play audio',
               ),

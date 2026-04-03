@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/widgets/sensei_fox.dart';
@@ -55,7 +56,11 @@ class HomeScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (i) => ref.read(selectedTabProvider.notifier).state = i,
+        onDestinationSelected: (i) {
+          HapticFeedback.selectionClick();
+          SystemSound.play(SystemSoundType.click);
+          ref.read(selectedTabProvider.notifier).state = i;
+        },
         destinations: destinations,
         backgroundColor: scheme.surface,
         indicatorColor: scheme.primaryContainer,
@@ -113,6 +118,8 @@ class _LearnTab extends ConsumerWidget {
                           onTap: shrine.isLocked
                               ? null
                               : () async {
+                                  HapticFeedback.selectionClick();
+                                  SystemSound.play(SystemSoundType.click);
                                   if (shrine.row.row == 0) {
                                     await Navigator.of(context).push(
                                       MaterialPageRoute<void>(
@@ -147,6 +154,8 @@ class _LearnTab extends ConsumerWidget {
                     progress: progress,
                     onStartReview: () async {
                       if (progress.shrines.isEmpty) return;
+                      HapticFeedback.mediumImpact();
+                      SystemSound.play(SystemSoundType.click);
                       final firstOpenShrine = progress.shrines.firstWhere(
                         (shrine) => !shrine.isLocked,
                         orElse: () => progress.shrines.first,
@@ -172,7 +181,6 @@ class _LearnTab extends ConsumerWidget {
   }
 }
 
-
 class _AnimatedShrine extends StatefulWidget {
   const _AnimatedShrine({required this.index, required this.child});
   final int index;
@@ -195,10 +203,7 @@ class _AnimatedShrineState extends State<_AnimatedShrine>
   late final Animation<Offset> _slide = Tween<Offset>(
     begin: const Offset(0, 0.2),
     end: Offset.zero,
-  ).animate(CurvedAnimation(
-    parent: _ctrl,
-    curve: Curves.elasticOut,
-  ));
+  ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
 
   @override
   void initState() {
@@ -218,10 +223,7 @@ class _AnimatedShrineState extends State<_AnimatedShrine>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: widget.child,
-      ),
+      child: SlideTransition(position: _slide, child: widget.child),
     );
   }
 }
@@ -277,8 +279,7 @@ class _GlowOrb extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0.0)]),
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0.0)]),
       ),
     );
   }
@@ -323,18 +324,14 @@ class _FloatingHeader extends StatelessWidget {
                           scriptType == 0
                               ? 'Hiragana'
                               : scriptType == 1
-                                  ? 'Katakana'
-                                  : 'Kanji',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
+                              ? 'Katakana'
+                              : 'Kanji',
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         Text(
                           'Mountain of Mastery',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(color: scheme.onSurfaceVariant),
                         ),
                       ],
@@ -378,9 +375,21 @@ class _ScriptSwitcher extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ScriptItem(label: 'あ', active: current == 0, onTap: () => onChanged(0)),
-          _ScriptItem(label: 'ア', active: current == 1, onTap: () => onChanged(1)),
-          _ScriptItem(label: '山', active: current == 2, onTap: () => onChanged(2)),
+          _ScriptItem(
+            label: 'あ',
+            active: current == 0,
+            onTap: () => onChanged(0),
+          ),
+          _ScriptItem(
+            label: 'ア',
+            active: current == 1,
+            onTap: () => onChanged(1),
+          ),
+          _ScriptItem(
+            label: '山',
+            active: current == 2,
+            onTap: () => onChanged(2),
+          ),
         ],
       ),
     );
@@ -388,7 +397,11 @@ class _ScriptSwitcher extends StatelessWidget {
 }
 
 class _ScriptItem extends StatelessWidget {
-  const _ScriptItem({required this.label, required this.active, required this.onTap});
+  const _ScriptItem({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
   final String label;
   final bool active;
   final VoidCallback onTap;
@@ -407,9 +420,9 @@ class _ScriptItem extends StatelessWidget {
         child: Text(
           label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-              ),
+            color: active ? scheme.onPrimary : scheme.onSurfaceVariant,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -448,29 +461,29 @@ class Shrine extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 children: [
-                   if (isLeftAligned) ...[
-                      Expanded(
-                        flex: 5,
-                        child: _ShrineCard(
-                          progress: progress,
-                          isLocked: progress.isLocked,
-                        ),
+                  if (isLeftAligned) ...[
+                    Expanded(
+                      flex: 5,
+                      child: _ShrineCard(
+                        progress: progress,
+                        isLocked: progress.isLocked,
                       ),
-                      const Spacer(flex: 1),
-                      _PathNode(progress: progress),
-                      const Spacer(flex: 1),
-                   ] else ...[
-                      const Spacer(flex: 1),
-                      _PathNode(progress: progress),
-                      const Spacer(flex: 1),
-                      Expanded(
-                        flex: 5,
-                        child: _ShrineCard(
-                          progress: progress,
-                          isLocked: progress.isLocked,
-                        ),
+                    ),
+                    const Spacer(flex: 1),
+                    _PathNode(progress: progress),
+                    const Spacer(flex: 1),
+                  ] else ...[
+                    const Spacer(flex: 1),
+                    _PathNode(progress: progress),
+                    const Spacer(flex: 1),
+                    Expanded(
+                      flex: 5,
+                      child: _ShrineCard(
+                        progress: progress,
+                        isLocked: progress.isLocked,
                       ),
-                   ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -491,8 +504,8 @@ class _PathNode extends StatelessWidget {
     final nodeColor = progress.isLocked
         ? scheme.surfaceContainerHighest
         : progress.isMastered
-            ? scheme.tertiary
-            : scheme.primary;
+        ? scheme.tertiary
+        : scheme.primary;
 
     return Container(
       width: 18,
@@ -516,10 +529,7 @@ class _PathNode extends StatelessWidget {
 }
 
 class _ShrineCard extends StatelessWidget {
-  const _ShrineCard({
-    required this.progress,
-    required this.isLocked,
-  });
+  const _ShrineCard({required this.progress, required this.isLocked});
 
   final ShrineProgress progress;
   final bool isLocked;
@@ -528,14 +538,16 @@ class _ShrineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final mastered = progress.masteryFraction;
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: (isLocked ? Colors.black : scheme.primary).withValues(alpha: 0.12),
+            color: (isLocked ? Colors.black : scheme.primary).withValues(
+              alpha: 0.12,
+            ),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -548,12 +560,13 @@ class _ShrineCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: (isLocked
-                      ? scheme.surfaceContainerHigh
-                      : progress.isMastered
+              color:
+                  (isLocked
+                          ? scheme.surfaceContainerHigh
+                          : progress.isMastered
                           ? scheme.primaryContainer.withValues(alpha: 0.7)
                           : scheme.surface.withValues(alpha: 0.85))
-                  .withValues(alpha: 0.8),
+                      .withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: isLocked
@@ -572,25 +585,36 @@ class _ShrineCard extends StatelessWidget {
                     children: [
                       Text(
                         '${progress.row.label} Row',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w800,
-                              color: isLocked ? scheme.onSurfaceVariant : scheme.primary,
+                              color: isLocked
+                                  ? scheme.onSurfaceVariant
+                                  : scheme.primary,
                             ),
                       ),
                       if (isLocked)
-                        Icon(Icons.lock_rounded, size: 16, color: scheme.onSurfaceVariant)
+                        Icon(
+                          Icons.lock_rounded,
+                          size: 16,
+                          color: scheme.onSurfaceVariant,
+                        )
                       else if (progress.isMastered)
-                        Icon(Icons.stars_rounded, size: 20, color: scheme.primary),
+                        Icon(
+                          Icons.stars_rounded,
+                          size: 20,
+                          color: scheme.primary,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     progress.row.kana,
                     style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: scheme.onSurface,
-                          letterSpacing: 4,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: scheme.onSurface,
+                      letterSpacing: 4,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   // Progress bar
@@ -619,17 +643,17 @@ class _ShrineCard extends StatelessWidget {
                     Text(
                       '${(mastered * 100).toInt()}% Mastered',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ] else
                     Text(
                       'Complete previous lessons to unlock',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            fontStyle: FontStyle.italic,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                 ],
               ),

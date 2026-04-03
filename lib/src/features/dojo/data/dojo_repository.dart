@@ -8,6 +8,7 @@ import '../../lessons/data/models/kana_card.dart';
 import '../../lessons/domain/services/srs_service.dart';
 import '../domain/achievement.dart';
 import '../domain/dojo_stats.dart';
+import '../../quiz/data/quiz_history_repository.dart';
 
 class DojoRepository {
   const DojoRepository({required this.isar});
@@ -18,11 +19,22 @@ class DojoRepository {
     final prefs = await SharedPreferences.getInstance();
     final userName = prefs.getString(AppPrefsKeys.userName) ?? 'Scholar';
     final dailyGoal = prefs.getInt(AppPrefsKeys.dailyGoal) ?? 10;
-    final quizAttempts = prefs.getInt(AppPrefsKeys.quizAttempts) ?? 0;
-    final quizCorrectAnswers =
-      prefs.getInt(AppPrefsKeys.quizCorrectAnswers) ?? 0;
-    final quizQuestionsAnswered =
-      prefs.getInt(AppPrefsKeys.quizQuestionsAnswered) ?? 0;
+    final quizHistory = await const QuizHistoryRepository().loadSessions();
+    final quizAttempts = quizHistory.isNotEmpty
+        ? quizHistory.length
+        : (prefs.getInt(AppPrefsKeys.quizAttempts) ?? 0);
+    final quizCorrectAnswers = quizHistory.isNotEmpty
+        ? quizHistory.fold<int>(
+            0,
+            (sum, session) => sum + session.correctAnswers,
+          )
+        : (prefs.getInt(AppPrefsKeys.quizCorrectAnswers) ?? 0);
+    final quizQuestionsAnswered = quizHistory.isNotEmpty
+        ? quizHistory.fold<int>(
+            0,
+            (sum, session) => sum + session.totalQuestions,
+          )
+        : (prefs.getInt(AppPrefsKeys.quizQuestionsAnswered) ?? 0);
 
     const streakSvc = StreakService();
     final streak = await streakSvc.getStreak();
@@ -36,14 +48,18 @@ class DojoRepository {
     final katCards = cards.where((c) => c.script == 1);
     final kanCards = cards.where((c) => c.script == 2);
 
-    final hMastered = hCards.where(srs.isCardMastered).length;
-    final hLearning = hCards.where((c) => srs.isCardCompleted(c) && !srs.isCardMastered(c)).length;
+    final hRowGroups = _groupByRow(hCards);
+    final katRowGroups = _groupByRow(katCards);
+    final kanRowGroups = _groupByRow(kanCards);
 
-    final katMastered = katCards.where(srs.isCardMastered).length;
-    final katLearning = katCards.where((c) => srs.isCardCompleted(c) && !srs.isCardMastered(c)).length;
+    final hMastered = _completedRowCount(hRowGroups, srs);
+    final hLearning = _inProgressRowCount(hRowGroups, srs);
 
-    final kanMastered = kanCards.where(srs.isCardMastered).length;
-    final kanLearning = kanCards.where((c) => srs.isCardCompleted(c) && !srs.isCardMastered(c)).length;
+    final katMastered = _completedRowCount(katRowGroups, srs);
+    final katLearning = _inProgressRowCount(katRowGroups, srs);
+
+    final kanMastered = _completedRowCount(kanRowGroups, srs);
+    final kanLearning = _inProgressRowCount(kanRowGroups, srs);
 
     final totalReviewed = cards.where(srs.isCardCompleted).length;
     final totalMastered = hMastered + katMastered + kanMastered;
@@ -58,7 +74,11 @@ class DojoRepository {
 
     final rankProgress = rankFromXp(xp);
 
-    final weeklyGoalDays = dailyGoal >= 15 ? 6 : dailyGoal >= 8 ? 5 : 3;
+    final weeklyGoalDays = dailyGoal >= 15
+        ? 6
+        : dailyGoal >= 8
+        ? 5
+        : 3;
 
     return DojoStats(
       userName: userName,
@@ -79,9 +99,9 @@ class DojoRepository {
       achievements: Achievement.compute(
         streak: streak,
         xp: xp,
-        kanaMastered: totalMastered,
+        kanaMastered: hMastered,
         totalCardsReviewed: totalReviewed,
-        totalKana: cards.length,
+        totalKana: hRowGroups.length,
       ),
       totalCardsReviewed: totalReviewed,
       quizAttempts: quizAttempts,
@@ -89,4 +109,33 @@ class DojoRepository {
       quizQuestionsAnswered: quizQuestionsAnswered,
     );
   }
+}
+
+Map<int, List<KanaCard>> _groupByRow(Iterable<KanaCard> cards) {
+  final rows = <int, List<KanaCard>>{};
+  for (final card in cards) {
+    rows.putIfAbsent(card.row, () => <KanaCard>[]).add(card);
+  }
+  return rows;
+}
+
+int _completedRowCount(Map<int, List<KanaCard>> rows, SrsService srs) {
+  return rows.values
+      .where(
+        (rowCards) =>
+            rowCards.isNotEmpty && rowCards.every(srs.isCardCompleted),
+      )
+      .length;
+}
+
+int _inProgressRowCount(Map<int, List<KanaCard>> rows, SrsService srs) {
+  return rows.values.where((rowCards) {
+    if (rowCards.isEmpty) {
+      return false;
+    }
+
+    final anyCompleted = rowCards.any(srs.isCardCompleted);
+    final allCompleted = rowCards.every(srs.isCardCompleted);
+    return anyCompleted && !allCompleted;
+  }).length;
 }

@@ -31,6 +31,7 @@ class AppPrefsKeys {
   static const quizAttempts = 'quiz_attempts';
   static const quizCorrectAnswers = 'quiz_correct_answers';
   static const quizQuestionsAnswered = 'quiz_questions_answered';
+  static const quizHistorySessions = 'quiz_history_sessions';
 }
 
 class KanaQuestApp extends StatelessWidget {
@@ -38,9 +39,7 @@ class KanaQuestApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProviderScope(
-      child: const _AppView(),
-    );
+    return ProviderScope(child: const _AppView());
   }
 }
 
